@@ -14,6 +14,7 @@
   .panel{background:#fff;border:2px solid #111;border-radius:16px;padding:16px 16px 18px;margin-bottom:16px}
   h2{margin:0 0 8px;font-size:18px}
   h3{margin:16px 0 8px;font-size:15px}
+  h4{margin:14px 0 6px;font-size:14px}
   .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
   button,label.file{background:#FFD000;border:2px solid #111;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer}
   button.secondary{background:#fff}
@@ -23,8 +24,10 @@
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{border-bottom:1px solid #eee4a4;padding:6px 4px;text-align:left;vertical-align:middle}
   th{font-size:12px}
-  input[type=number],input[type=date]{width:100%;box-sizing:border-box;border:1.5px solid #111;border-radius:8px;padding:6px 7px;font:inherit}
-  .name{font-weight:800;white-space:nowrap}
+  input[type=number],input[type=date],input[type=text]{width:100%;box-sizing:border-box;border:1.5px solid #111;border-radius:8px;padding:6px 7px;font:inherit}
+  .name{font-weight:800;min-width:140px}
+  button.tiny{background:#fff;padding:4px 8px;font-size:12px}
+  .add-row{margin:8px 0 2px}
   .muted{color:#444;font-size:12px;white-space:nowrap}
   .hint{color:#444;font-size:12px;margin:8px 0 0;line-height:1.4}
   .hidden{display:none}
@@ -35,12 +38,12 @@
 <body>
 <header>
   <h1>Modifica listini</h1>
-  <p>Carica il file HTML del gestionale. I valori attuali compaiono già compilati. Dopo le modifiche scarica il file e usalo al posto di quello precedente.</p>
+  <p>Carica il file HTML del gestionale oppure del preventivo cliente. I valori attuali compaiono già compilati. Sotto Flat, Fix e Flex puoi aggiungere una promo o toglierne una: nome e parametri sono gli stessi delle altre. Dopo le modifiche scarica il file e usalo al posto di quello precedente.</p>
 </header>
 <main>
   <section class="panel">
     <div class="actions">
-      <label class="file">Carica gestionale HTML<input id="file" type="file" accept=".html,text/html"></label>
+      <label class="file">Carica HTML<input id="file" type="file" accept=".html,text/html"></label>
       <button id="download" class="secondary" disabled>Scarica HTML aggiornato</button>
       <button id="reset" class="secondary" disabled>Ripristina valori caricati</button>
     </div>
@@ -52,18 +55,53 @@
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
-let sourceHtml="", fileName="gestionale.html", catalog=null, originalCatalog=null;
+let sourceHtml="", fileName="gestionale.html", catalog=null, originalCatalog=null, fileKind="gestionale";
+function kindOf(html){return String(html||"").includes('id="step"')?"cliente":"gestionale"}
+function kindName(){return fileKind==="cliente"?"il preventivo del cliente":"il gestionale"}
+function kindIn(){return fileKind==="cliente"?"nel preventivo del cliente":"nel gestionale"}
 
 function clone(v){return JSON.parse(JSON.stringify(v))}
 function extractCatalog(html){
   const m=String(html||"").match(/<script type="application\/json" id="promo-catalog">([\s\S]*?)<\/script>/);
-  if(!m)throw Error("Questo file non contiene il listino del gestionale.");
+  if(!m)throw Error("Questo file non contiene il listino.");
   const data=JSON.parse(m[1]);
   if(!data.flat||!data.commodity)throw Error("Listino non riconosciuto.");
   if(!data.indices||typeof data.indices!=="object")data.indices={};
   if(data.indices.pun==null||data.indices.pun==="")data.indices.pun=0.207542;
   if(data.indices.psv==null||data.indices.psv==="")data.indices.psv=0.843182;
+  ensureOfferIds(data);
   return data;
+}
+function ensureOfferIds(data){
+  const used=new Set();
+  for(const service of ["light","gas"]){
+    for(const segment of ["private","piva"]){
+      const list=data.commodity&&data.commodity[service]&&data.commodity[service][segment]||[];
+      list.forEach((o,i)=>{
+        let id=String(o&&o.id||"").trim();
+        if(!id||used.has(id)){
+          const base=(o.kind||"offerta")+"-"+service+"-"+segment+"-"+(i+1);
+          id=base;
+          let n=2;
+          while(used.has(id)){id=base+"-"+n;n++}
+          o.id=id;
+        }
+        used.add(o.id);
+      });
+    }
+  }
+}
+function newOfferId(kind,service,segment){
+  const used=new Set();
+  for(const svc of ["light","gas"]){
+    for(const seg of ["private","piva"]){
+      for(const o of catalog.commodity[svc][seg]||[]) used.add(o.id);
+    }
+  }
+  const base=kind+"-"+service+"-"+segment+"-nuova";
+  let id=base, n=2;
+  while(used.has(id)){id=base+"-"+n;n++}
+  return id;
 }
 function replaceCatalog(html,data){
   const pretty=JSON.stringify(data,null,2);
@@ -72,11 +110,22 @@ function replaceCatalog(html,data){
   if(next===html)throw Error("Impossibile aggiornare il listino nel file.");
   return next;
 }
+function esc(s){return String(s??"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;")}
 function numInput(path,value,step){
-  return `<input type="number" min="0" step="${step}" data-path="${path}" value="${Number(value)}">`;
+  const shown=value===""||value==null?"":Number(value);
+  return `<input type="number" min="0" step="${step}" data-path="${path}" value="${shown}">`;
+}
+function textInput(path,value){
+  return `<input type="text" data-path="${path}" value="${esc(value)}">`;
 }
 function dateInput(path,value){
-  return `<input type="date" data-path="${path}" value="${String(value||"").slice(0,10)}">`;
+  return `<input type="date" data-path="${path}" value="${esc(String(value||"").slice(0,10))}">`;
+}
+function removeBtn(path){
+  return `<button type="button" class="tiny" data-remove="${path}">Togli</button>`;
+}
+function addBtn(spec,label){
+  return `<div class="add-row"><button type="button" data-add="${spec}">${label}</button></div>`;
 }
 function setPath(obj,path,value){
   const parts=path.split(".");
@@ -85,34 +134,54 @@ function setPath(obj,path,value){
   cur[parts[parts.length-1]]=value;
 }
 function flatTable(title,list,key,unit){
+  const shared=fileKind==="cliente";
   const rows=list.map((p,i)=>`<tr>
-    <td class="name">${p.name}<div class="muted">Plafond ${p.plafond} ${unit}</div></td>
+    <td class="name">${textInput(`flat.${key}.${i}.name`,p.name)}</td>
+    <td>${numInput(`flat.${key}.${i}.plafond`,p.plafond,"1")}</td>
     <td>${numInput(`flat.${key}.${i}.monthly`,p.monthly,"0.01")}</td>
     <td>${numInput(`flat.${key}.${i}.convergence`,p.convergence||0,"0.01")}</td>
     <td>${numInput(`flat.${key}.${i}.price`,p.price,"0.001")}</td>
-    <td>${dateInput(`flat.${key}.${i}.expires`,p.expires)}</td>
+    ${shared?"":`<td>${dateInput(`flat.${key}.${i}.expires`,p.expires)}</td>`}
+    <td>${removeBtn(`flat.${key}.${i}`)}</td>
   </tr>`).join("");
-  return `<h3>${title}</h3><table><thead><tr><th>Promo</th><th>Canone mensile €</th><th>Sconto convergenza €/mese</th><th>Costo extra soglia €/${unit}</th><th>Scadenza promo</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const body=rows||`<tr><td colspan="${shared?6:7}" class="muted">Nessuna promo.</td></tr>`;
+  const head=shared
+    ?`<th>Promo</th><th>Plafond annuo ${unit}</th><th>Canone mensile €</th><th>Sconto convergenza €/mese</th><th>Costo extra soglia €/${unit}</th><th></th>`
+    :`<th>Promo</th><th>Plafond annuo ${unit}</th><th>Canone mensile €</th><th>Sconto convergenza €/mese</th><th>Costo extra soglia €/${unit}</th><th>Scadenza promo</th><th></th>`;
+  return `<h3>${title}</h3><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>${addBtn("flat."+key,"Aggiungi promo Flat")}`;
 }
-function commodityTable(title,list,path){
-  const rows=list.map((o,i)=>{
-    const priceLabel=o.kind==="fix"?"energy":"spread";
-    const priceTitle=o.kind==="fix"?`Costo unitario €/${o.unit}`:`Spread €/${o.unit}`;
-    return `<tr>
-      <td class="name">${o.name}<div class="muted">${o.kind==="fix"?"Fix":"Flex"} · ${o.unit}</div></td>
-      <td>${numInput(`${path}.${i}.${priceLabel}`,o[priceLabel],"0.001")}</td>
+function commodityKindTable(list,path,kind){
+  const label=kind==="fix"?"Fix":"Flex";
+  const rows=list.map((o,i)=>o.kind===kind?`<tr>
+      <td class="name">${textInput(`${path}.${i}.name`,o.name)}</td>
+      <td>${numInput(`${path}.${i}.${kind==="fix"?"energy":"spread"}`,o[kind==="fix"?"energy":"spread"],"0.001")}</td>
       <td>${numInput(`${path}.${i}.comm`,o.comm,"0.01")}</td>
       <td>${numInput(`${path}.${i}.discountMonth`,o.discountMonth||0,"0.01")}</td>
       <td>${dateInput(`${path}.${i}.expires`,o.expires)}</td>
       <td>${numInput(`${path}.${i}.months`,o.months,"1")}</td>
-    </tr>`;
-  }).join("");
-  return `<h3>${title}</h3><table><thead><tr><th>Promo</th><th>Costo unitario o spread</th><th>Contributo fisso annuo €</th><th>Sconto convergenza €/mese</th><th>Scadenza promo</th><th>Durata mesi</th></tr></thead><tbody>${rows}</tbody></table>`;
+      <td>${removeBtn(`${path}.${i}`)}</td>
+    </tr>`:"").join("");
+  const body=rows||`<tr><td colspan="7" class="muted">Nessuna promo ${label}.</td></tr>`;
+  return `<h4>${label}</h4><table><thead><tr><th>Promo</th><th>${kind==="fix"?"Costo unitario":"Spread"}</th><th>Contributo fisso annuo €</th><th>Sconto convergenza €/mese</th><th>Scadenza promo</th><th>Durata mesi</th><th></th></tr></thead><tbody>${body}</tbody></table>${addBtn(path+"."+kind,"Aggiungi promo "+label)}`;
+}
+function commodityGroup(title,list,path){
+  return `<h3>${title}</h3>${commodityKindTable(list,path,"fix")}${commodityKindTable(list,path,"flex")}`;
 }
 function renderEditor(){
   const c=catalog;
+  const flatShared=fileKind==="cliente"?`
+      <h3>Scadenza e durata</h3>
+      <table><thead><tr><th>Scadenza promo Flat</th><th>Durata prezzo bloccato (anni)</th></tr></thead><tbody><tr>
+        <td>${dateInput("flat.expires",c.flat.expires||"")}</td>
+        <td>${numInput("flat.years",c.flat.years??2,"1")}</td>
+      </tr></tbody></table>
+      <p class="hint">La scadenza vale per tutte le promo Flat. La durata compare sul foglio come «PER N ANNI».</p>`:"";
+  const indexHint=fileKind==="cliente"
+    ?"Questi valori aggiornano il PUN e il PSV del mese più recente nel preventivo del cliente."
+    :"Questi valori compilano il PUN e il PSV di partenza nel gestionale.";
   $("editor").innerHTML=`
     <section class="panel"><h2>Promo Energia FLAT</h2>
+      ${flatShared}
       ${flatTable("Luce",c.flat.light,"light","kWh")}
       ${flatTable("Gas",c.flat.gas,"gas","Smc")}
     </section>
@@ -122,13 +191,144 @@ function renderEditor(){
         <td>${numInput("indices.pun",c.indices.pun,"any")}</td>
         <td>${numInput("indices.psv",c.indices.psv,"any")}</td>
       </tr></tbody></table>
-      <p class="hint">Questi valori compilano il PUN e il PSV di partenza nel gestionale.</p>
-      ${commodityTable("Luce privata",c.commodity.light.private,"commodity.light.private")}
-      ${commodityTable("Luce P.IVA",c.commodity.light.piva,"commodity.light.piva")}
-      ${commodityTable("Gas privato",c.commodity.gas.private,"commodity.gas.private")}
-      ${commodityTable("Gas P.IVA",c.commodity.gas.piva,"commodity.gas.piva")}
+      <p class="hint">${indexHint}</p>
+      ${commodityGroup("Luce privata",c.commodity.light.private,"commodity.light.private")}
+      ${commodityGroup("Luce P.IVA",c.commodity.light.piva,"commodity.light.piva")}
+      ${commodityGroup("Gas privato",c.commodity.gas.private,"commodity.gas.private")}
+      ${commodityGroup("Gas P.IVA",c.commodity.gas.piva,"commodity.gas.piva")}
     </section>`;
   $("editor").classList.remove("hidden");
+  $("editor").querySelectorAll("[data-add]").forEach(btn=>btn.addEventListener("click",()=>addPromo(btn.dataset.add)));
+  $("editor").querySelectorAll("[data-remove]").forEach(btn=>btn.addEventListener("click",()=>removePromo(btn.dataset.remove)));
+}
+function applyInputs(next){
+  for(const input of $("editor").querySelectorAll("[data-path]")){
+    const path=input.dataset.path;
+    if(input.type==="date"||input.type==="text"){setPath(next,path,input.type==="text"?input.value.trim():input.value);continue}
+    const raw=String(input.value).trim().replace(",",".");
+    if(raw===""){setPath(next,path,"");continue}
+    const n=Number(raw);
+    setPath(next,path,Number.isFinite(n)?n:raw);
+  }
+}
+function readEditor(){
+  const next=clone(catalog);
+  applyInputs(next);
+  catalog=next;
+}
+function listAt(root,path){
+  const parts=path.split(".");
+  const index=Number(parts.pop());
+  let list=root;
+  for(const p of parts) list=list[p];
+  return {list,index};
+}
+function addPromo(spec){
+  readEditor();
+  let focusPath="";
+  if(spec.startsWith("flat.")){
+    const key=spec.split(".")[1];
+    const list=catalog.flat[key];
+    const sample=list[list.length-1];
+    const expires=fileKind==="cliente"?(catalog.flat.expires||""):(sample?sample.expires:"");
+    list.push({name:"",plafond:"",monthly:"",price:"",convergence:sample?sample.convergence:0,expires});
+    focusPath=`flat.${key}.${list.length-1}.name`;
+  }else{
+    const parts=spec.split(".");
+    const service=parts[1], segment=parts[2], kind=parts[3];
+    const list=catalog.commodity[service][segment];
+    const sample=[...list].reverse().find(o=>o.kind===kind)||list[list.length-1];
+    const row={id:newOfferId(kind,service,segment),name:"",kind,comm:"",discountMonth:sample?sample.discountMonth:0,months:sample?sample.months:12,unit:service==="light"?"kWh":"Smc",point:service==="light"?"POD":"PDR",expires:sample?sample.expires:""};
+    if(kind==="fix") row.energy="";
+    else{row.spread="";row.index=service==="light"?"PUN":"PSV"}
+    let at=list.length;
+    for(let i=list.length-1;i>=0;i--){if(list[i].kind===kind){at=i+1;break}}
+    if(kind==="fix"&&!list.some(o=>o.kind==="fix")) at=0;
+    list.splice(at,0,row);
+    focusPath=`commodity.${service}.${segment}.${at}.name`;
+  }
+  renderEditor();
+  const el=document.querySelector(`[data-path="${focusPath}"]`);
+  if(el){el.focus();el.scrollIntoView({block:"center"})}
+  $("status").textContent="Promo aggiunta. Scrivi nome e parametri, poi scarica il file.";
+}
+function removePromo(path){
+  readEditor();
+  const {list,index}=listAt(catalog,path);
+  const name=String(list[index]&&list[index].name||"").trim();
+  if(!confirm(name?`Togliere ${name} dal listino?`:"Togliere questa promo dal listino?"))return;
+  list.splice(index,1);
+  renderEditor();
+  $("status").textContent=name?`Tolta ${name}. Scarica il file per aggiornare ${kindName()}.`:`Promo tolta. Scarica il file per aggiornare ${kindName()}.`;
+}
+function asNum(value){
+  if(value===""||value==null) return NaN;
+  const n=Number(value);
+  return Number.isFinite(n)?n:NaN;
+}
+function requireNum(value,label,zeroOk){
+  const n=asNum(value);
+  if(!Number.isFinite(n)||n<0||(!zeroOk&&n<=0)) throw Error(label);
+  return n;
+}
+function uniqueNames(label,list){
+  const seen=new Set();
+  for(const item of list){
+    const name=String(item.name||"").trim();
+    if(!name) throw Error("Ogni promo ha bisogno di un nome.");
+    if(/[<>]/.test(name)) throw Error("Il nome non può contenere < o >.");
+    const key=name.toLowerCase();
+    if(seen.has(key)) throw Error(label+" ha due promo con lo stesso nome.");
+    seen.add(key);
+    item.name=name;
+  }
+}
+function requireDate(value){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||""))) throw Error("Inserisci tutte le scadenze.");
+}
+function validate(data){
+  for(const [key,label] of [["light","La luce Flat"],["gas","Il gas Flat"]]){
+    const list=data.flat[key]||[];
+    uniqueNames(label,list);
+    for(const p of list){
+      requireNum(p.plafond,"Il plafond di "+p.name+" deve essere maggiore di zero.",false);
+      requireNum(p.monthly,"Il canone di "+p.name+" deve essere un numero, zero o più.",true);
+      requireNum(p.convergence,"Lo sconto di "+p.name+" deve essere un numero, zero o più.",true);
+      requireNum(p.price,"Il costo extra soglia di "+p.name+" deve essere un numero, zero o più.",true);
+      requireDate(p.expires);
+    }
+  }
+  for(const [service,segment,label] of [["light","private","La luce privata"],["light","piva","La luce P.IVA"],["gas","private","Il gas privato"],["gas","piva","Il gas P.IVA"]]){
+      const list=data.commodity[service][segment]||[];
+      uniqueNames(label,list);
+      for(const o of list){
+        const price=o.kind==="fix"?o.energy:o.spread;
+        requireNum(price,"Il costo di "+o.name+" deve essere un numero, zero o più.",true);
+        requireNum(o.comm,"Il contributo fisso di "+o.name+" deve essere un numero, zero o più.",true);
+        requireNum(o.discountMonth,"Lo sconto di "+o.name+" deve essere un numero, zero o più.",true);
+        const months=asNum(o.months);
+        if(!Number.isInteger(months)||months<1) throw Error("La durata di "+o.name+" è in mesi interi, almeno 1.");
+        requireDate(o.expires);
+        if(o.kind==="flex"&&o.index!=="PUN"&&o.index!=="PSV") o.index=service==="light"?"PUN":"PSV";
+      }
+  }
+}
+function syncClientCatalog(data){
+  if(fileKind!=="cliente")return;
+  const years=asNum(data.flat.years);
+  if(!Number.isInteger(years)||years<1) throw Error("La durata del prezzo bloccato è in anni interi, almeno 1.");
+  data.flat.years=years;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(data.flat.expires||""))) throw Error("Inserisci la scadenza delle promo Flat.");
+  for(const key of ["light","gas"]){
+    for(const p of data.flat[key]||[]) p.expires=data.flat.expires;
+  }
+  data.indices.pun=requireNum(data.indices.pun,"Il PUN deve essere un numero, zero o più.",true);
+  data.indices.psv=requireNum(data.indices.psv,"Il PSV deve essere un numero, zero o più.",true);
+  const series=data.indices.series;
+  if(Array.isArray(series)&&series.length){
+    const newest=[...series].sort((a,b)=>String(a.id)<String(b.id)?1:-1)[0];
+    if(newest){newest.pun=data.indices.pun;newest.psv=data.indices.psv}
+  }
 }
 function loadFileText(file){
   return new Promise((resolve,reject)=>{
@@ -139,21 +339,9 @@ function loadFileText(file){
   });
 }
 function collectCatalog(){
-  const next=clone(originalCatalog);
-  let error="";
-  for(const input of $("editor").querySelectorAll("[data-path]")){
-    const path=input.dataset.path;
-    if(input.type==="date"){
-      if(!input.value){error="Inserisci tutte le scadenze.";break}
-      setPath(next,path,input.value);
-      continue;
-    }
-    const n=Number(String(input.value).replace(",","."));
-    if(!Number.isFinite(n)||n<0){error="I numeri devono essere maggiori o uguali a zero.";break}
-    if(path.endsWith(".months")&&(!Number.isInteger(n)||n<1)){error="La durata è in mesi interi, almeno 1.";break}
-    setPath(next,path,n);
-  }
-  if(error)throw Error(error);
+  const next=clone(catalog);
+  applyInputs(next);
+  validate(next);
   return next;
 }
 $("file").addEventListener("change",async e=>{
@@ -162,13 +350,14 @@ $("file").addEventListener("change",async e=>{
   if(!file)return;
   try{
     sourceHtml=await loadFileText(file);
+    fileKind=kindOf(sourceHtml);
     originalCatalog=extractCatalog(sourceHtml);
     catalog=clone(originalCatalog);
-    fileName=file.name||"gestionale.html";
+    fileName=file.name||(fileKind==="cliente"?"preventivo_cliente.html":"gestionale.html");
     renderEditor();
     $("download").disabled=false;
     $("reset").disabled=false;
-    $("status").textContent=`File caricato: ${fileName}. I valori sono quelli già presenti nel gestionale.`;
+    $("status").textContent=`File caricato: ${fileName}. I valori sono quelli già presenti ${kindIn()}.`;
   }catch(err){
     $("status").textContent="File non utilizzabile: "+(err&&err.message?err.message:err);
   }
@@ -182,6 +371,7 @@ $("reset").addEventListener("click",()=>{
 $("download").addEventListener("click",()=>{
   try{
     const next=collectCatalog();
+    syncClientCatalog(next);
     const html=replaceCatalog(sourceHtml,next);
     const blob=new Blob([html],{type:"text/html"});
     const a=document.createElement("a");
@@ -190,7 +380,7 @@ $("download").addEventListener("click",()=>{
     a.click();
     URL.revokeObjectURL(a.href);
     catalog=clone(next);
-    $("status").textContent=`Scaricato ${fileName}. Sostituisci il gestionale con questo file.`;
+    $("status").textContent=`Scaricato ${fileName}. Sostituisci ${kindName()} con questo file.`;
   }catch(err){
     $("status").textContent=err&&err.message?err.message:String(err);
   }
