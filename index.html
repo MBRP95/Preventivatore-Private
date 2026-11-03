@@ -310,9 +310,10 @@ body.fit-flyers .fs-btn.on{bottom:4px}
 <script type="application/json" id="promo-catalog">
 {
   "indices": {
-    "pun": 0.208146,
-    "psv": 0.843182,
+    "pun": 0.230817,
+    "psv": 0.945436,
     "series": [
+      {"id": "2026-10", "pun": 0.230817, "psv": 0.945436},
       {"id": "2026-09", "pun": 0.208146, "psv": 0.843182},
       {"id": "2026-08", "pun": 0.182468, "psv": 0.686448},
       {"id": "2026-07", "pun": 0.158500, "psv": 0.606612},
@@ -323,8 +324,7 @@ body.fit-flyers .fs-btn.on{bottom:4px}
       {"id": "2026-02", "pun": 0.110572, "psv": 0.376788},
       {"id": "2026-01", "pun": 0.124858, "psv": 0.403934},
       {"id": "2025-12", "pun": 0.109359, "psv": 0.327985},
-      {"id": "2025-11", "pun": 0.111583, "psv": 0.348704},
-      {"id": "2025-10", "pun": 0.107552, "psv": 0.353670}
+      {"id": "2025-11", "pun": 0.111583, "psv": 0.348704}
     ]
   },
   "flat": {
@@ -592,6 +592,7 @@ let PROMO_CATALOG=null,LIGHT_PROMOS=[],GAS_PROMOS=[],COMMODITY_OFFERS=null;
 let currentQuote=null,fastwebOn=false,stepIndex=0;
 const MONTHS_IT=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 const INDEX_SERIES_FALLBACK=[
+  {id:"2026-10",pun:0.230817,psv:0.945436},
   {id:"2026-09",pun:0.208146,psv:0.843182},
   {id:"2026-08",pun:0.182468,psv:0.686448},
   {id:"2026-07",pun:0.1585,psv:0.606612},
@@ -602,8 +603,7 @@ const INDEX_SERIES_FALLBACK=[
   {id:"2026-02",pun:0.110572,psv:0.376788},
   {id:"2026-01",pun:0.124858,psv:0.403934},
   {id:"2025-12",pun:0.109359,psv:0.327985},
-  {id:"2025-11",pun:0.111583,psv:0.348704},
-  {id:"2025-10",pun:0.107552,psv:0.35367}
+  {id:"2025-11",pun:0.111583,psv:0.348704}
 ];
 function indexSeries(){
   const raw=PROMO_CATALOG&&PROMO_CATALOG.indices&&PROMO_CATALOG.indices.series;
