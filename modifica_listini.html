@@ -853,21 +853,34 @@ $("reset").addEventListener("click",()=>{
   buttonsDirty=false;
   showWorking(loaded.gestionale&&loaded.cliente?"Valori riportati a quelli dei file caricati.":"Valori riportati a quelli del file caricato.");
 });
-$("download").addEventListener("click",()=>{
+$("download").addEventListener("click",async()=>{
   try{
     const next=collectCatalog();
     syncClientCatalog(next);
     syncFlatExpiry(next);
     syncSeries(next);
-    const names=[];
+    const built=[];
     for(const slot of ["gestionale","cliente"]){
       const src=loaded[slot];
       if(!src)continue;
       let html=replaceCatalog(src.html,next);
       if(slot==="cliente") html=applyClientExtras(html);
-      downloadBlob(html,src.name);
-      names.push(src.name);
+      built.push({slot,name:src.name,html});
     }
+    if(window.__SITE){
+      const body={};
+      for(const item of built) body[item.slot]=item.html;
+      const res=await fetch("/api/admin/publish",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const data=await res.json().catch(()=>({}));
+      if(res.status===401){location.href="/accesso?admin=1";return}
+      if(!res.ok)throw Error(data.error||"Pubblicazione non riuscita");
+      catalog=clone(next);
+      dirty=false;
+      $("status").textContent="Offerte pubblicate. Negozi e tablet le vedono aggiornando la pagina.";
+      return;
+    }
+    const names=[];
+    for(const item of built){downloadBlob(item.html,item.name);names.push(item.name)}
     catalog=clone(next);
     dirty=false;
     $("status").textContent=names.length===2?`Scaricati ${names[0]} e ${names[1]}. Sostituisci i due file con questi.`:`Scaricato ${names[0]}. Sostituisci ${fileKind==="cliente"?"il preventivo del cliente":"il gestionale"} con questo file.`;
@@ -875,6 +888,21 @@ $("download").addEventListener("click",()=>{
     $("status").textContent=err&&err.message?err.message:String(err);
   }
 });
+if(window.__SITE){
+  $("download").textContent="Pubblica offerte";
+  (async()=>{
+    try{
+      const res=await fetch("/api/admin/files",{credentials:"same-origin"});
+      if(res.status===401){location.href="/accesso?admin=1";return}
+      const data=await res.json();
+      await loadSlot("gestionale", new File([data.gestionale],"PreventivatoreStore.html",{type:"text/html"}));
+      await loadSlot("cliente", new File([data.cliente],"PreventivatoreTablet.html",{type:"text/html"}));
+      $("status").textContent="Listino attuale caricato. Pubblica le offerte per aggiornare negozi e tablet.";
+    }catch(err){
+      $("status").textContent=err&&err.message?err.message:String(err);
+    }
+  })();
+}
 </script>
 </body>
 </html>

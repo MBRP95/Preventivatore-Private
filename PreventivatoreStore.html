@@ -527,8 +527,8 @@ function relPathOf(file){return String(file.webkitRelativePath||file._rel||file.
 function archivePathFromRel(rel){const parts=String(rel||"").split("/").filter(Boolean);if(!parts.length)return null;const leaf=parts[parts.length-1].toLowerCase();if(!leaf.endsWith(".json"))return null;const dati=parts.findIndex(p=>p.toLowerCase()==="dati");if(dati>=0)return parts.slice(dati).join("/");const prev=parts.findIndex(p=>p.toLowerCase()==="preventivi");if(prev>=0)return "dati/"+parts.slice(prev).join("/");const cest=parts.findIndex(p=>p.toLowerCase()==="cestino");if(cest>=0)return "dati/"+parts.slice(cest).join("/");if(leaf==="clienti.json")return "dati/clienti.json";return null}
 function isArchiveJson(arch){const lower=String(arch||"").toLowerCase();if(lower==="dati/clienti.json")return true;if(lower.startsWith("dati/preventivi/")&&!lower.slice("dati/preventivi/".length).includes("/"))return true;if(lower.startsWith("dati/cestino/")&&!lower.slice("dati/cestino/".length).includes("/"))return true;return false}
 async function importFirefoxFolder(fileList){const files=[...fileList];if(!files.length){if(!folderHandle)$("folderStatus").textContent="Nessuna cartella selezionata. Puoi comunque fare calcoli e stampare PDF.";return}const folderName=(relPathOf(files[0]).split("/")[0])||"Archivio";const accepted=[];for(const file of files){const arch=archivePathFromRel(relPathOf(file));if(isArchiveJson(arch))accepted.push({file,arch})}let store=await readFirefoxStore();if(!accepted.length){if(store){store.hint="Nessun preventivo trovato: seleziona la cartella che contiene dati.";folderHandle=firefoxDirHandle(store,"");enableArchiveButtons();await loadArchive();return}store={name:folderName,files:{},dirs:new Set(),hint:"Nessun preventivo trovato: seleziona la cartella che contiene dati."}}else if(!store||store.name!==folderName)store={name:folderName,files:{},dirs:new Set(),hint:""};else store.hint="";let imported=0;for(const item of accepted){const text=await item.file.text();const mtime=Number(item.file.lastModified)||Date.now();const prev=store.files[item.arch];if(!prev||mtime>=(prev.mtime||0)){store.files[item.arch]={text,mtime};imported++}}for(const d of ["dati","dati/preventivi","dati/cestino","documenti","backup"])store.dirs.add(d);if(!imported&&!Object.keys(store.files).length)store.hint="Nessun preventivo trovato: seleziona la cartella che contiene dati.";await persistFirefoxStore(store);folderHandle=firefoxDirHandle(store,"");enableArchiveButtons();await loadArchive()}
-async function restoreFirefoxArchive(){if("showDirectoryPicker"in window)return;try{const store=await readFirefoxStore();if(!store)return;folderHandle=firefoxDirHandle(store,"");enableArchiveButtons();await loadArchive()}catch(e){}}
-async function chooseFolder(){if("showDirectoryPicker"in window){try{folderHandle=await window.showDirectoryPicker({mode:"readwrite"});if(await folderHandle.requestPermission({mode:"readwrite"})!=="granted")throw Error("Permesso di scrittura non concesso");for(const d of ["dati","documenti","backup"])await ensureDir(folderHandle,d);$("folderStatus").textContent=`Cartella selezionata: ${folderHandle.name}. Archivio locale pronto.`;enableArchiveButtons();await loadArchive()}catch(e){$("folderStatus").textContent="Cartella non selezionata o accesso negato: "+(e&&e.message?e.message:e)}return}$("folderPickerFallback").click()}
+async function restoreFirefoxArchive(){if(window.__SITE)return;if("showDirectoryPicker"in window)return;try{const store=await readFirefoxStore();if(!store)return;folderHandle=firefoxDirHandle(store,"");enableArchiveButtons();await loadArchive()}catch(e){}}
+async function chooseFolder(){if(window.__SITE)return;if("showDirectoryPicker"in window){try{folderHandle=await window.showDirectoryPicker({mode:"readwrite"});if(await folderHandle.requestPermission({mode:"readwrite"})!=="granted")throw Error("Permesso di scrittura non concesso");for(const d of ["dati","documenti","backup"])await ensureDir(folderHandle,d);$("folderStatus").textContent=`Cartella selezionata: ${folderHandle.name}. Archivio locale pronto.`;enableArchiveButtons();await loadArchive()}catch(e){$("folderStatus").textContent="Cartella non selezionata o accesso negato: "+(e&&e.message?e.message:e)}return}$("folderPickerFallback").click()}
 async function readJsonFiles(dir){const arr=[];for await(const [name,h] of dir.entries())if(h.kind==="file"&&name.endsWith(".json")){try{arr.push({name,data:JSON.parse(await(await h.getFile()).text())})}catch(e){}}return arr}
 function normalizeQuote(q){
  if(q.sections)return q;
@@ -538,8 +538,8 @@ function normalizeQuote(q){
  }
  return q;
 }
-async function loadArchive(){if(!folderHandle)return;try{const d=await ensureDir(folderHandle,"dati"),qdir=await ensureDir(d,"preventivi"),tdir=await ensureDir(d,"cestino");customers=await readJson(d,"clienti.json",[]);quotes=(await readJsonFiles(qdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));trashQuotes=(await readJsonFiles(tdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));quotes.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));trashQuotes.sort((a,b)=>(b.deletedAt||"").localeCompare(a.deletedAt||""));let archiveMsg=`Archivio caricato. Clienti: ${customers.length}; attivi: ${quotes.length}; nel cestino: ${trashQuotes.length}.`;if(folderHandle.firefoxFallback){archiveMsg+=" Su Firefox i salvataggi restano in questo browser. Per copiarli su OneDrive usa Esporta backup JSON.";if(folderHandle.store&&folderHandle.store.hint){archiveMsg+=" "+folderHandle.store.hint;folderHandle.store.hint=""}}$("folderStatus").textContent=archiveMsg;renderHistory();renderTrash()}catch(e){$("folderStatus").textContent="Errore lettura archivio: "+e.message}}
-async function saveQuote(){if(!currentQuote)return;applyFormIdentity(currentQuote);if(!customerReady(currentQuote.customer)){alert("Senza nome, email e cellulare del cliente il preventivo non si può salvare. Puoi comunque scaricare il PDF.");$("saveQuote").disabled=true;return}for(const [k,s] of Object.entries(currentQuote.sections))if(!s.selectedPromo||!s.calculations){alert("Seleziona una promozione per ogni servizio incluso.");return}if(!folderHandle){alert("Seleziona la cartella OneDrive condivisa.");return}
+async function loadArchive(){if(window.__SITE)return loadArchiveSite();if(!folderHandle)return;try{const d=await ensureDir(folderHandle,"dati"),qdir=await ensureDir(d,"preventivi"),tdir=await ensureDir(d,"cestino");customers=await readJson(d,"clienti.json",[]);quotes=(await readJsonFiles(qdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));trashQuotes=(await readJsonFiles(tdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));quotes.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));trashQuotes.sort((a,b)=>(b.deletedAt||"").localeCompare(a.deletedAt||""));let archiveMsg=`Archivio caricato. Clienti: ${customers.length}; attivi: ${quotes.length}; nel cestino: ${trashQuotes.length}.`;if(folderHandle.firefoxFallback){archiveMsg+=" Su Firefox i salvataggi restano in questo browser. Per copiarli su OneDrive usa Esporta backup JSON.";if(folderHandle.store&&folderHandle.store.hint){archiveMsg+=" "+folderHandle.store.hint;folderHandle.store.hint=""}}$("folderStatus").textContent=archiveMsg;renderHistory();renderTrash()}catch(e){$("folderStatus").textContent="Errore lettura archivio: "+e.message}}
+async function saveQuote(){if(window.__SITE)return saveQuoteSite();if(!currentQuote)return;applyFormIdentity(currentQuote);if(!customerReady(currentQuote.customer)){alert("Senza nome, email e cellulare del cliente il preventivo non si può salvare. Puoi comunque scaricare il PDF.");$("saveQuote").disabled=true;return}for(const [k,s] of Object.entries(currentQuote.sections))if(!s.selectedPromo||!s.calculations){alert("Seleziona una promozione per ogni servizio incluso.");return}if(!folderHandle){alert("Seleziona la cartella OneDrive condivisa.");return}
  try{const d=await ensureDir(folderHandle,"dati"),qdir=await ensureDir(d,"preventivi"),existing=await readJsonFiles(qdir),year=currentQuote.customer.date.slice(0,4),nums=existing.map(x=>x.data.quoteNumber).filter(n=>n&&n.startsWith("PREV-"+year+"-")).map(n=>Number(n.split("-").pop())).filter(Number.isFinite);currentQuote.quoteNumber=currentQuote.quoteNumber||`PREV-${year}-${String(Math.max(0,...nums)+1).padStart(3,"0")}`;currentQuote.status="salvato";currentQuote.savedAt=new Date().toISOString();const filename=quoteFilename(currentQuote);await writeJson(qdir,filename,currentQuote);const ci=customers.findIndex(c=>c.email.toLowerCase()===currentQuote.customer.email.toLowerCase());const cust={...currentQuote.customer,shop:currentQuote.shop};if(ci>=0)customers[ci]=cust;else customers.push(cust);await writeJson(d,"clienti.json",customers);await loadArchive();showQuotePreview(currentQuote);$("saveStatus").textContent=savedArchiveMessage(currentQuote.quoteNumber,`Salvato ${currentQuote.quoteNumber}. Attendi la sincronizzazione OneDrive prima di usare un altro PC.`);$("makePdf").disabled=false}catch(e){$("saveStatus").textContent="Errore nel salvataggio: "+e.message}}
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 
@@ -804,11 +804,11 @@ function quoteSavingLabel(q){
   if(!secs.some(s=>sectionCompares(s,q)))return "—";
   return money(secs.reduce((a,s)=>a+(sectionCompares(s,q)?Number(s.calculations?.saving)||0:0),0))+" /anno";
 }
-function renderHistory(){const host=$("history");const wrap=$("archiveLists");if(wrap)wrap.classList.remove("hidden");host.classList.remove("hidden");if(!quotes.length){host.innerHTML='<p class="note">Nessun preventivo salvato.</p>';return}host.innerHTML='<table><thead><tr><th>Numero</th><th>Data</th><th>Cliente</th><th>Tipo</th><th>Servizi</th><th>Risparmio</th><th>Azioni</th></tr></thead><tbody>'+quotes.map((q,i)=>`<tr><td>${escapeHtml(q.quoteNumber||"—")}</td><td>${dateLabel(q.customer?.date)}</td><td>${escapeHtml(q.customer?.name||"")}</td><td>${q.kind==="commodity"?"Fix/Flex":"FLAT"}</td><td>${escapeHtml(quoteServicesLabel(q))}</td><td>${quoteSavingLabel(q)}</td><td><button class="secondary" data-open="${i}">Apri</button> <button class="danger" data-trash="${i}">Sposta nel cestino</button></td></tr>`).join("")+'</tbody></table>';host.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openQuote(quotes[+b.dataset.open])));host.querySelectorAll("[data-trash]").forEach(b=>b.addEventListener("click",()=>moveToTrash(quotes[+b.dataset.trash])))}
-function renderTrash(){const host=$("trash");if(host.classList.contains("hidden"))return;const wrap=$("archiveLists");if(wrap)wrap.classList.remove("hidden");if(!trashQuotes.length){host.innerHTML='<p class="note">Il cestino è vuoto.</p>';return}host.innerHTML='<table><thead><tr><th>Numero</th><th>Data</th><th>Cliente</th><th>Eliminato il</th><th>Azioni</th></tr></thead><tbody>'+trashQuotes.map((q,i)=>`<tr><td>${escapeHtml(q.quoteNumber||"—")}</td><td>${dateLabel(q.customer?.date)}</td><td>${escapeHtml(q.customer?.name||"")}</td><td>${q.deletedAt?new Date(q.deletedAt).toLocaleString("it-IT"):"—"}</td><td><button class="secondary" data-restore="${i}">Ripristina</button> <button class="danger" data-purge="${i}">Elimina definitivamente</button></td></tr>`).join("")+'</tbody></table>';host.querySelectorAll("[data-restore]").forEach(b=>b.addEventListener("click",()=>restoreTrash(trashQuotes[+b.dataset.restore])));host.querySelectorAll("[data-purge]").forEach(b=>b.addEventListener("click",()=>purgeTrash(trashQuotes[+b.dataset.purge])))}
-async function moveToTrash(q){if(!folderHandle)return alert("Seleziona prima la cartella archivio.");if(!confirm(`Spostare nel cestino il preventivo ${q.quoteNumber||""} di ${q.customer?.name||""}? Il PDF già creato non verrà eliminato.`))return;try{const d=await ensureDir(folderHandle,"dati"),src=await ensureDir(d,"preventivi"),dest=await ensureDir(d,"cestino"),filename=q._filename||quoteFilename(q),data={...q,deletedAt:new Date().toISOString(),originalFilename:filename};delete data._filename;await writeJson(dest,filename,data);await src.removeEntry(filename);await loadArchive()}catch(e){alert("Spostamento nel cestino non riuscito: "+e.message)}}
-async function restoreTrash(q){if(!folderHandle)return;const filename=q._filename||quoteFilename(q);if(!confirm(`Ripristinare ${q.quoteNumber||""} di ${q.customer?.name||""} nello storico?`))return;try{const d=await ensureDir(folderHandle,"dati"),src=await ensureDir(d,"cestino"),dest=await ensureDir(d,"preventivi");let data={...q};delete data._filename;delete data.deletedAt;delete data.originalFilename;let target=filename;try{await dest.getFileHandle(target);target="RIPRISTINATO-"+target}catch(e){}await writeJson(dest,target,data);await src.removeEntry(filename);await loadArchive()}catch(e){alert("Ripristino non riuscito: "+e.message)}}
-async function purgeTrash(q){if(!folderHandle)return;const filename=q._filename||quoteFilename(q);if(!confirm(`ELIMINARE DEFINITIVAMENTE ${q.quoteNumber||""} di ${q.customer?.name||""}? Questa operazione non è reversibile.`))return;try{const d=await ensureDir(folderHandle,"dati"),tdir=await ensureDir(d,"cestino");await tdir.removeEntry(filename);await loadArchive()}catch(e){alert("Eliminazione definitiva non riuscita: "+e.message)}}
+function renderHistory(){const host=$("history");const wrap=$("archiveLists");if(wrap)wrap.classList.remove("hidden");host.classList.remove("hidden");if(!quotes.length){host.innerHTML='<p class="note">Nessun preventivo salvato.</p>';return}host.innerHTML='<table><thead><tr><th>Numero</th><th>Data</th><th>Cliente</th>'+(window.__SITE?'<th>Negozio</th>':'')+'<th>Tipo</th><th>Servizi</th><th>Risparmio</th><th>Azioni</th></tr></thead><tbody>'+quotes.map((q,i)=>`<tr><td>${escapeHtml(q.quoteNumber||"—")}</td><td>${dateLabel(q.customer?.date)}</td><td>${escapeHtml(q.customer?.name||"")}</td>${window.__SITE?`<td>${escapeHtml(q.shop?.name||"")}</td>`:""}<td>${q.kind==="commodity"?"Fix/Flex":"FLAT"}</td><td>${escapeHtml(quoteServicesLabel(q))}</td><td>${quoteSavingLabel(q)}</td><td><button class="secondary" data-open="${i}">Apri</button>${q._own===false?"":` <button class="danger" data-trash="${i}">Sposta nel cestino</button>`}</td></tr>`).join("")+'</tbody></table>';host.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>openQuote(quotes[+b.dataset.open])));host.querySelectorAll("[data-trash]").forEach(b=>b.addEventListener("click",()=>moveToTrash(quotes[+b.dataset.trash])))}
+function renderTrash(){const host=$("trash");if(host.classList.contains("hidden"))return;const wrap=$("archiveLists");if(wrap)wrap.classList.remove("hidden");if(!trashQuotes.length){host.innerHTML='<p class="note">Il cestino è vuoto.</p>';return}host.innerHTML='<table><thead><tr><th>Numero</th><th>Data</th><th>Cliente</th><th>Eliminato il</th><th>Azioni</th></tr></thead><tbody>'+trashQuotes.map((q,i)=>`<tr><td>${escapeHtml(q.quoteNumber||"—")}</td><td>${dateLabel(q.customer?.date)}</td><td>${escapeHtml(q.customer?.name||"")}</td><td>${q.deletedAt?new Date(q.deletedAt).toLocaleString("it-IT"):"—"}</td><td>${q._own===false?"":`<button class="secondary" data-restore="${i}">Ripristina</button> <button class="danger" data-purge="${i}">Elimina definitivamente</button>`}</td></tr>`).join("")+'</tbody></table>';host.querySelectorAll("[data-restore]").forEach(b=>b.addEventListener("click",()=>restoreTrash(trashQuotes[+b.dataset.restore])));host.querySelectorAll("[data-purge]").forEach(b=>b.addEventListener("click",()=>purgeTrash(trashQuotes[+b.dataset.purge])))}
+async function moveToTrash(q){if(window.__SITE)return moveToTrashSite(q);if(!folderHandle)return alert("Seleziona prima la cartella archivio.");if(!confirm(`Spostare nel cestino il preventivo ${q.quoteNumber||""} di ${q.customer?.name||""}? Il PDF già creato non verrà eliminato.`))return;try{const d=await ensureDir(folderHandle,"dati"),src=await ensureDir(d,"preventivi"),dest=await ensureDir(d,"cestino"),filename=q._filename||quoteFilename(q),data={...q,deletedAt:new Date().toISOString(),originalFilename:filename};delete data._filename;await writeJson(dest,filename,data);await src.removeEntry(filename);await loadArchive()}catch(e){alert("Spostamento nel cestino non riuscito: "+e.message)}}
+async function restoreTrash(q){if(window.__SITE)return restoreTrashSite(q);if(!folderHandle)return;const filename=q._filename||quoteFilename(q);if(!confirm(`Ripristinare ${q.quoteNumber||""} di ${q.customer?.name||""} nello storico?`))return;try{const d=await ensureDir(folderHandle,"dati"),src=await ensureDir(d,"cestino"),dest=await ensureDir(d,"preventivi");let data={...q};delete data._filename;delete data.deletedAt;delete data.originalFilename;let target=filename;try{await dest.getFileHandle(target);target="RIPRISTINATO-"+target}catch(e){}await writeJson(dest,target,data);await src.removeEntry(filename);await loadArchive()}catch(e){alert("Ripristino non riuscito: "+e.message)}}
+async function purgeTrash(q){if(window.__SITE)return purgeTrashSite(q);if(!folderHandle)return;const filename=q._filename||quoteFilename(q);if(!confirm(`ELIMINARE DEFINITIVAMENTE ${q.quoteNumber||""} di ${q.customer?.name||""}? Questa operazione non è reversibile.`))return;try{const d=await ensureDir(folderHandle,"dati"),tdir=await ensureDir(d,"cestino");await tdir.removeEntry(filename);await loadArchive()}catch(e){alert("Eliminazione definitiva non riuscita: "+e.message)}}
 function fillIdentity(q){$("name").value=q.customer?.name||"";$("fiscalCode").value=q.customer?.fiscalCode||"";$("date").value=q.customer?.date||"";$("email").value=q.customer?.email||"";$("phone").value=q.customer?.phone||"";$("customerAddress").value=q.customer?.address||"";$("shopName").value=q.shop?.name||q.shop?.store||q.shop?.shopName||"";$("shopAddress").value=q.shop?.address||"";$("consultant").value=q.shop?.consultant||"";$("shopEmail").value=q.shop?.email||"";$("shopPhone").value=q.shop?.phone||""}
 function openCommodityQuote(q){
   setToolMode("commodity");
@@ -858,6 +858,7 @@ function openCommodityQuote(q){
   $("fxPreview").scrollIntoView({behavior:"smooth",block:"start"});
 }
 async function saveCommodityQuote(){
+  if(window.__SITE)return saveCommodityQuoteSite();
   if(!currentCommodityQuote){alert("Calcola prima il preventivo Fix/Flex.");return}
   applyFormIdentity(currentCommodityQuote);
   if(!customerReady(currentCommodityQuote.customer)){alert("Senza nome, email e cellulare del cliente il preventivo non si può salvare. Puoi comunque scaricare il PDF.");$("fxSave").disabled=true;return}
@@ -883,9 +884,9 @@ async function saveCommodityQuote(){
   }catch(e){$("fxSaveStatus").textContent="Errore nel salvataggio: "+e.message}
 }
 function openQuote(q){if(q&&q.kind==="commodity"){openCommodityQuote(q);return}setToolMode("flat");currentQuote=JSON.parse(JSON.stringify(q));$("name").value=q.customer?.name||"";$("fiscalCode").value=q.customer?.fiscalCode||"";$("date").value=q.customer?.date||"";$("email").value=q.customer?.email||"";$("phone").value=q.customer?.phone||"";$("customerAddress").value=q.customer?.address||"";$("shopName").value=q.shop?.name||q.shop?.store||q.shop?.shopName||"";$("shopAddress").value=q.shop?.address||"";$("consultant").value=q.shop?.consultant||"";$("shopEmail").value=q.shop?.email||"";$("shopPhone").value=q.shop?.phone||"";$("includeLight").checked=!!q.sections?.light;$("includeGas").checked=!!q.sections?.gas;$("flatFastweb").checked=q.isFastweb!==false;$("lightCompare").checked=q.sections?.light?sectionCompares(q.sections.light,q):true;$("gasCompare").checked=q.sections?.gas?sectionCompares(q.sections.gas,q):true;flatToggleCompare(false);$("lightInputs").classList.toggle("hidden",!q.sections?.light);$("gasInputs").classList.toggle("hidden",!q.sections?.gas);if(q.sections?.light){$("lightConsumption").value=q.sections.light.consumption??"";$("lightSpend").value=q.sections.light.currentSpend??""}$("meterPower").value=String(q.lightOptions?.meterPower||3);$("residency").value=q.lightOptions?.residency||"resident";if(q.sections?.gas){$("gasConsumption").value=q.sections.gas.consumption??"";$("gasSpend").value=q.sections.gas.currentSpend??""}renderSelected();$("saveQuote").disabled=true;$("makePdf").disabled=false;$("saveStatus").textContent=`Preventivo ${q.quoteNumber||"bozza"} caricato in sola lettura.`}
-function clearForm(){["name","fiscalCode","email","phone","customerAddress","shopName","shopAddress","consultant","shopEmail","shopPhone","lightConsumption","lightSpend","gasConsumption","gasSpend"].forEach(id=>$(id).value="");$("date").value=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;$("includeLight").checked=true;$("includeGas").checked=false;$("flatFastweb").checked=true;$("lightCompare").checked=true;$("gasCompare").checked=true;flatToggleCompare(false);$("lightInputs").classList.remove("hidden");$("gasInputs").classList.add("hidden");$("meterPower").value="3";$("residency").value="resident";currentQuote=null;$("result").classList.add("hidden");$("calcStatus").classList.add("hidden");$("saveQuote").disabled=true;$("makePdf").disabled=true;hideQuotePreview();$("saveStatus").textContent="Compila i dati e calcola le promozioni."}
+function clearForm(){["name","fiscalCode","email","phone","customerAddress","shopName","shopAddress","consultant","shopEmail","shopPhone","lightConsumption","lightSpend","gasConsumption","gasSpend"].forEach(id=>$(id).value="");$("date").value=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;$("includeLight").checked=true;$("includeGas").checked=false;$("flatFastweb").checked=true;$("lightCompare").checked=true;$("gasCompare").checked=true;flatToggleCompare(false);$("lightInputs").classList.remove("hidden");$("gasInputs").classList.add("hidden");$("meterPower").value="3";$("residency").value="resident";currentQuote=null;$("result").classList.add("hidden");$("calcStatus").classList.add("hidden");$("saveQuote").disabled=true;$("makePdf").disabled=true;hideQuotePreview();$("saveStatus").textContent="Compila i dati e calcola le promozioni.";if(window.__SITE)applySiteShop()}
 function exportBackup(){const blob=new Blob([JSON.stringify({schemaVersion:2,exportedAt:new Date().toISOString(),customers,quotes:quotes.map(q=>{delete q._filename;return q}),trashQuotes:trashQuotes.map(q=>{delete q._filename;return q})},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="backup-preventivi-"+today.toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(a.href)}
-function importBackupFile(file){const reader=new FileReader();reader.onload=async()=>{try{const obj=JSON.parse(reader.result);if(!Array.isArray(obj.quotes)||!Array.isArray(obj.customers))throw Error("Formato backup non riconosciuto");if(!folderHandle)throw Error("Seleziona prima la cartella OneDrive");if(!confirm(`Importare ${obj.quotes.length} preventivi e ${obj.customers.length} clienti?`))return;const d=await ensureDir(folderHandle,"dati"),qd=await ensureDir(d,"preventivi"),td=await ensureDir(d,"cestino");for(const q of obj.quotes)await writeJson(qd,quoteFilename(q),q);for(const q of (obj.trashQuotes||[]))await writeJson(td,quoteFilename(q),q);customers=obj.customers;await writeJson(d,"clienti.json",customers);await loadArchive()}catch(e){alert("Importazione non riuscita: "+e.message)}};reader.readAsText(file)}
+function importBackupFile(file){if(window.__SITE)return importBackupSite(file);const reader=new FileReader();reader.onload=async()=>{try{const obj=JSON.parse(reader.result);if(!Array.isArray(obj.quotes)||!Array.isArray(obj.customers))throw Error("Formato backup non riconosciuto");if(!folderHandle)throw Error("Seleziona prima la cartella OneDrive");if(!confirm(`Importare ${obj.quotes.length} preventivi e ${obj.customers.length} clienti?`))return;const d=await ensureDir(folderHandle,"dati"),qd=await ensureDir(d,"preventivi"),td=await ensureDir(d,"cestino");for(const q of obj.quotes)await writeJson(qd,quoteFilename(q),q);for(const q of (obj.trashQuotes||[]))await writeJson(td,quoteFilename(q),q);customers=obj.customers;await writeJson(d,"clienti.json",customers);await loadArchive()}catch(e){alert("Importazione non riuscita: "+e.message)}};reader.readAsText(file)}
 
 let currentCommodityQuote=null;
 const MONTHS_IT=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
@@ -1328,6 +1329,144 @@ function renderCommodityRateTables(){
   $("fxOfferTable").innerHTML=html;
 }
 
+let siteSession=null;
+async function siteSend(path,body,method){
+  const res=await fetch(path,{method:method||"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:body==null?undefined:JSON.stringify(body)});
+  let data={};
+  try{data=await res.json()}catch(e){}
+  if(res.status===401){location.href="/accesso";throw Error("Accesso scaduto")}
+  if(!res.ok)throw Error(data.error||"Operazione non riuscita");
+  return data;
+}
+function selectedSiteShop(){
+  if(!siteSession)return null;
+  if(siteSession.role==="shop")return siteSession.shop;
+  const pick=$("siteShopPick");
+  return (siteSession.shops||[]).find(s=>s.id===(pick&&pick.value))||null;
+}
+function applySiteShop(){
+  const shop=selectedSiteShop();
+  if(!shop)return;
+  $("shopName").value=shop.name||"";
+  $("shopAddress").value=shop.address||"";
+  $("shopEmail").value=shop.email||"";
+  $("shopPhone").value=shop.phone||"";
+  const lock=siteSession.role==="shop";
+  for(const id of ["shopName","shopAddress","shopEmail","shopPhone"])$(id).readOnly=lock;
+}
+function ensureAdminShopPick(){
+  if(siteSession.role!=="admin"||$("siteShopPick"))return;
+  const label=document.createElement("label");
+  label.innerHTML='Negozio del preventivo<select id="siteShopPick"></select>';
+  const host=$("shopName").closest("label");
+  host.parentElement.insertBefore(label,host);
+  const pick=$("siteShopPick");
+  pick.innerHTML=(siteSession.shops||[]).map(s=>`<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join("");
+  pick.addEventListener("change",applySiteShop);
+}
+function sitePayload(q){
+  const copy=JSON.parse(JSON.stringify(q));
+  delete copy._filename;delete copy._own;
+  const shop=selectedSiteShop();
+  if(shop)copy.shopId=shop.id;
+  return copy;
+}
+async function loadArchiveSite(){
+  const data=await siteSend("/api/quotes",null,"GET");
+  quotes=(data.quotes||[]).map(q=>normalizeQuote(q));
+  trashQuotes=(data.trash||[]).map(q=>normalizeQuote(q));
+  customers=data.customers||[];
+  const who=siteSession&&siteSession.role==="admin"?"Amministratore":(siteSession&&siteSession.shop&&siteSession.shop.name)||"Negozio";
+  $("folderStatus").textContent=`Archivio online di ${who}. Visibili: ${quotes.length}. Nel cestino: ${trashQuotes.length}. Puoi modificare solo i preventivi del tuo negozio.`;
+  renderHistory();
+  renderTrash();
+}
+async function saveQuoteSite(){
+  if(!currentQuote)return;
+  applyFormIdentity(currentQuote);
+  applySiteShop();
+  applyFormIdentity(currentQuote);
+  if(!customerReady(currentQuote.customer)){alert("Senza nome, email e cellulare del cliente il preventivo non si può salvare. Puoi comunque scaricare il PDF.");$("saveQuote").disabled=true;return}
+  for(const [k,s] of Object.entries(currentQuote.sections||{}))if(!s.selectedPromo||!s.calculations){alert("Seleziona una promozione per ogni servizio incluso.");return}
+  if(currentQuote._own===false){alert("Puoi modificare solo i preventivi del tuo negozio.");return}
+  try{
+    const saved=await siteSend("/api/quotes",sitePayload(currentQuote));
+    currentQuote=normalizeQuote(saved.quote);
+    await loadArchiveSite();
+    showQuotePreview(currentQuote);
+    $("saveStatus").textContent=`Salvato ${currentQuote.quoteNumber}.`;
+    $("makePdf").disabled=false;
+  }catch(e){$("saveStatus").textContent="Errore nel salvataggio: "+e.message}
+}
+async function saveCommodityQuoteSite(){
+  if(!currentCommodityQuote){alert("Calcola prima il preventivo Fix/Flex.");return}
+  applyFormIdentity(currentCommodityQuote);
+  applySiteShop();
+  applyFormIdentity(currentCommodityQuote);
+  if(!customerReady(currentCommodityQuote.customer)){alert("Senza nome, email e cellulare del cliente il preventivo non si può salvare. Puoi comunque scaricare il PDF.");$("fxSave").disabled=true;return}
+  if(currentCommodityQuote._own===false){alert("Puoi modificare solo i preventivi del tuo negozio.");return}
+  try{
+    const saved=await siteSend("/api/quotes",sitePayload(currentCommodityQuote));
+    currentCommodityQuote=normalizeQuote(saved.quote);
+    await loadArchiveSite();
+    showCommodityPreview(currentCommodityQuote);
+    $("fxSaveStatus").textContent=`Salvato ${currentCommodityQuote.quoteNumber}.`;
+    $("fxPdf").disabled=false;
+  }catch(e){$("fxSaveStatus").textContent="Errore nel salvataggio: "+e.message}
+}
+async function moveToTrashSite(q){
+  if(!q)return;
+  if(q._own===false)return alert("Puoi mettere nel cestino solo i preventivi del tuo negozio.");
+  if(!confirm(`Spostare nel cestino il preventivo ${q.quoteNumber||""} di ${q.customer?.name||""}?`))return;
+  try{await siteSend("/api/quotes/"+encodeURIComponent(q.id)+"/trash",{});await loadArchiveSite()}catch(e){alert(e.message)}
+}
+async function restoreTrashSite(q){
+  if(!q||q._own===false)return alert("Puoi ripristinare solo i preventivi del tuo negozio.");
+  if(!confirm(`Ripristinare ${q.quoteNumber||""} di ${q.customer?.name||""} nello storico?`))return;
+  try{await siteSend("/api/quotes/"+encodeURIComponent(q.id)+"/restore",{});await loadArchiveSite()}catch(e){alert(e.message)}
+}
+async function purgeTrashSite(q){
+  if(!q||q._own===false)return alert("Puoi eliminare solo i preventivi del tuo negozio.");
+  if(!confirm(`ELIMINARE DEFINITIVAMENTE ${q.quoteNumber||""} di ${q.customer?.name||""}? Questa operazione non è reversibile.`))return;
+  try{await siteSend("/api/quotes/"+encodeURIComponent(q.id),null,"DELETE");await loadArchiveSite()}catch(e){alert(e.message)}
+}
+function importBackupSite(file){
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    try{
+      const obj=JSON.parse(reader.result);
+      if(!Array.isArray(obj.quotes)||!Array.isArray(obj.customers))throw Error("Formato backup non riconosciuto");
+      if(!confirm(`Importare ${obj.quotes.length} preventivi?`))return;
+      const data=await siteSend("/api/import",{quotes:obj.quotes,trashQuotes:obj.trashQuotes||[]});
+      await loadArchiveSite();
+      alert(`Importati ${data.imported} preventivi.`);
+    }catch(e){alert("Importazione non riuscita: "+e.message)}
+  };
+  reader.readAsText(file);
+}
+async function initSite(){
+  folderHandle={site:true,name:"online"};
+  enableArchiveButtons();
+  const h2=document.querySelector("main h2");
+  if(h2)h2.textContent="1. Archivio online";
+  $("chooseFolder").hidden=true;
+  $("loadArchive").hidden=true;
+  const out=document.createElement("button");
+  out.type="button";
+  out.className="secondary";
+  out.textContent="Esci";
+  out.addEventListener("click",async()=>{await fetch("/api/logout",{method:"POST",credentials:"same-origin"});location.href="/"});
+  $("chooseFolder").parentElement.appendChild(out);
+  try{
+    siteSession=await siteSend("/api/session",null,"GET");
+  }catch(e){return}
+  ensureAdminShopPick();
+  applySiteShop();
+  const openQuoteOffline=openQuote;
+  openQuote=function(q){openQuoteOffline(q);if(siteSession.role==="shop")applySiteShop()};
+  try{await loadArchiveSite()}catch(e){$("folderStatus").textContent=e.message}
+}
+
 $("chooseFolder").addEventListener("click",chooseFolder);$("folderPickerFallback").addEventListener("change",async e=>{const files=[...(e.target.files||[])];e.target.value="";try{await importFirefoxFolder(files)}catch(err){$("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err)}});$("loadArchive").addEventListener("click",loadArchive);$("calculate").addEventListener("click",calculate);$("clear").addEventListener("click",clearForm);$("saveQuote").addEventListener("click",saveQuote);$("makePdf").addEventListener("click",makePdf);$("showHistory").addEventListener("click",()=>{if(folderHandle)loadArchive();else alert("Seleziona prima la cartella archivio")});$("showTrash").addEventListener("click",()=>{if(!folderHandle){alert("Seleziona prima la cartella archivio");return}$("trash").classList.toggle("hidden");if(!$("trash").classList.contains("hidden"))loadArchive()});$("exportBackup").addEventListener("click",exportBackup);$("importBackup").addEventListener("click",()=>$("backupFile").click());$("backupFile").addEventListener("change",e=>{if(e.target.files[0])importBackupFile(e.target.files[0]);e.target.value=""});
 $("includeLight").addEventListener("change",()=>{$("lightInputs").classList.toggle("hidden",!$("includeLight").checked)});$("includeGas").addEventListener("change",()=>{$("gasInputs").classList.toggle("hidden",!$("includeGas").checked)});
 $("lightCompare").addEventListener("change",()=>flatToggleCompare(true));
@@ -1358,5 +1497,7 @@ fxFillOfferSelects();
 renderCommodityRateTables();
 fxToggleBoxes();
 restoreFirefoxArchive();
+if(window.__SITE)initSite();
+
 
 </script></body></html>

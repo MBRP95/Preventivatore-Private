@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preventivatore</title>
+<style>
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#fff8d6;color:#1c1a14}
+  main{max-width:760px;margin:0 auto;padding:56px 20px}
+  h1{margin:0 0 8px;font-size:34px}
+  p{margin:0;color:#4a4638;font-size:16px}
+  .choices{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:28px}
+  a{display:block;background:#FFD000;color:#111;text-decoration:none;border-radius:18px;padding:28px 22px;min-height:120px;box-sizing:border-box}
+  a b{display:block;font-size:24px;margin-bottom:8px}
+  a span{display:block;font-size:15px;font-weight:500;line-height:1.35}
+  @media(max-width:680px){.choices{grid-template-columns:1fr} h1{font-size:28px}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Preventivatore</h1>
+  <p>Scegli come entrare.</p>
+  <div class="choices">
+    <a href="/cliente"><b>Cliente</b><span>Guida alle offerte. Si apre senza password.</span></a>
+    <a href="/accesso"><b>Shop Assistant</b><span>Preventivi, archivio e PDF del negozio.</span></a>
+  </div>
+</main>
+</body>
+</html>
