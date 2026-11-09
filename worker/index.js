@@ -294,10 +294,70 @@ async function publicIndex(env) {
   });
 }
 
+function patchEditorFallback(html) {
+  const before = [
+    "      publishMode=true;",
+    '      $("fileGestionale").closest("label").classList.add("hidden");',
+    '      $("fileCliente").closest("label").classList.add("hidden");',
+    '      $("download").textContent="Pubblica listini";',
+    '      const html=await shellWithCatalog(data.html||"");',
+    '      if(kindOf(html)!=="unito") throw Error("Il file dei listini non è l\'index del sito.");',
+    '      loadCombined(html,"index.html");',
+    '      $("status").textContent="Listino letto dal sito. Pubblica per aggiornarlo."+scheduleLoadedNote();',
+    "    }catch(err){",
+    '      $("status").textContent=err&&err.message?err.message:String(err);',
+  ].join("\n");
+  const after = [
+    '      const html=await shellWithCatalog(data.html||"");',
+    '      if(kindOf(html)!=="unito") throw Error("Il file dei listini non è l\'index del sito.");',
+    '      loadCombined(html,"index.html");',
+    "      // Nascondi il caricamento manuale solo dopo il caricamento completo.",
+    "      publishMode=true;",
+    '      $("fileGestionale").closest("label").classList.add("hidden");',
+    '      $("fileCliente").closest("label").classList.add("hidden");',
+    '      $("download").textContent="Pubblica listini";',
+    '      $("status").textContent="Listino letto dal sito. Pubblica per aggiornarlo."+scheduleLoadedNote();',
+    "    }catch(err){",
+    "      // Se il caricamento online fallisce, mantieni disponibile il fallback manuale.",
+    "      publishMode=false;",
+    '      csrfToken="";',
+    "      loaded.gestionale=null;",
+    "      loaded.cliente=null;",
+    "      catalog=null;",
+    "      baselineCatalog=null;",
+    "      dirty=false;",
+    '      $("fileGestionale").closest("label").classList.remove("hidden");',
+    '      $("fileCliente").closest("label").classList.remove("hidden");',
+    '      $("download").textContent="Scarica HTML aggiornato";',
+    '      $("download").disabled=true;',
+    '      $("reset").disabled=true;',
+    '      $("status").textContent="Caricamento online non riuscito: "+(err&&err.message?err.message:String(err))+" Puoi continuare caricando manualmente Gestionale e Preventivo cliente.";',
+  ].join("\n");
+  return html.includes(before) ? html.replace(before, after) : html;
+}
+
 export async function handle(request, env) {
   const url = new URL(request.url);
   if (url.pathname.startsWith("/api/")) return api(request, env, url);
-  if (env.ASSETS && env.ASSETS.fetch) return env.ASSETS.fetch(request);
+  if (env.ASSETS && env.ASSETS.fetch) {
+    const response = await env.ASSETS.fetch(request);
+    if ((url.pathname === "/" || url.pathname === "/index.html") && response.ok &&
+        (response.headers.get("content-type") || "").includes("text/html")) {
+      const original = await response.clone().text();
+      const patched = patchEditorFallback(original);
+      if (patched !== original) {
+        const headers = new Headers(response.headers);
+        headers.delete("content-length");
+        headers.set("cache-control", "no-store");
+        return new Response(patched, {
+          status: response.status,
+          statusText: response.statusText,
+          headers
+        });
+      }
+    }
+    return response;
+  }
   return new Response("Non trovato.", { status: 404 });
 }
 
