@@ -353,6 +353,8 @@ function patchEditorFallback(html) {
     ]
   ];
   for (const [from, to] of parserPatches) patched = patched.replaceAll(from, to);
+  // Il ruolo privilegiato del backend è admin: allinea il bootstrap dell'editor incorporato.
+  patched = patched.replaceAll('session.role!=="editor"', 'session.role!=="admin"');
   return patched;
 }
 
