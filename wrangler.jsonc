@@ -5,12 +5,14 @@
   "assets": {
     "directory": ".",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": [
+      "/api/*"
+    ]
   },
   "kv_namespaces": [
     {
       "binding": "SESSIONS",
-      "id": "00000000000000000000000000000000"
+      "id": "9e4c798e55aa407fa32f1c2734a13231"
     }
   ]
 }
