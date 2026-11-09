@@ -4,7 +4,7 @@ import { handle } from "../worker/index.js";
 import { assessStoredGrant, importPrivateJwk, publicJwkOf, signOfflineToken, verifyOfflineToken } from "../worker/offline.js";
 
 const SELLER = "seller-test-pass";
-const EDITOR = "editor-test-pass";
+const ADMIN = "admin-test-pass";
 
 function memoryKv() {
   const map = new Map();
@@ -33,7 +33,7 @@ function listiniHtml(extra = "") {
   return "<!doctype html><html><head><meta name=\"page-rev\" content=\"2026-11-08T23:10:00.000Z\"></head><body>" +
     "<script type=\"application/json\" id=\"promo-catalog\">{\"flat\":{},\"commodity\":{}}</script>" +
     "<script type=\"text/plain\" id=\"cliente-app\">cliente</script>" +
-    "<script type=\"text/plain\" id=\"editor-app\">editor</script>" +
+    "<script type=\"text/plain\" id=\"admin-app\">admin</script>" +
     extra + "x".repeat(1100) + "</body></html>";
 }
 
@@ -41,7 +41,7 @@ function env(extra = {}) {
   return {
     SESSIONS: sessions,
     SELLER_PASSWORD: SELLER,
-    EDITOR_PASSWORD: EDITOR,
+    ADMIN_PASSWORD: ADMIN,
     GITHUB_TOKEN: "test-token",
     OFFLINE_SIGNING_JWK: signingJwk,
     ...extra
@@ -130,10 +130,10 @@ test("backend di accesso e listini", async (t) => {
     assert.equal(after.status, 401);
   });
 
-  await t.test("editor pubblica solo index.html dei listini luce e gas", async () => {
-    const editor = await call("/api/login", { method: "POST", body: { password: EDITOR }, ip: "203.0.113.30" });
-    assert.equal(editor.status, 200);
-    const id = cookieOf(editor);
+  await t.test("admin pubblica solo index.html dei listini luce e gas", async () => {
+    const admin = await call("/api/login", { method: "POST", body: { password: ADMIN }, ip: "203.0.113.30" });
+    assert.equal(admin.status, 200);
+    const id = cookieOf(admin);
     const read = await call("/api/admin/files", { cookie: id });
     assert.equal(read.status, 200);
     assert.equal(read.data.html.includes("promo-catalog"), true);
@@ -150,7 +150,7 @@ test("backend di accesso e listini", async (t) => {
     const blocked = await call("/api/admin/publish", {
       method: "POST",
       cookie: id,
-      csrf: editor.data.csrf,
+      csrf: admin.data.csrf,
       body: { html: listiniHtml("<b id=\"githubToken\"></b>"), message: "x" }
     });
     assert.equal(blocked.status, 400);
@@ -158,7 +158,7 @@ test("backend di accesso e listini", async (t) => {
     const published = await call("/api/admin/publish", {
       method: "POST",
       cookie: id,
-      csrf: editor.data.csrf,
+      csrf: admin.data.csrf,
       body: { html: listiniHtml("<!--offerta-->"), message: "Aggiorna i listini." }
     });
     assert.equal(published.status, 200);
@@ -167,7 +167,7 @@ test("backend di accesso e listini", async (t) => {
     const conflict = await call("/api/admin/publish", {
       method: "POST",
       cookie: id,
-      csrf: editor.data.csrf,
+      csrf: admin.data.csrf,
       body: { html: listiniHtml(), message: "conflitto" }
     });
     assert.equal(conflict.status, 409);
@@ -203,11 +203,11 @@ test("backend di accesso e listini", async (t) => {
       const response = await call("/api/login", { method: "POST", body: { password }, ip: "198.51.100." + password.length });
       assert.notEqual(response.status, 200);
     }
-    const burned = await call("/api/login", { method: "POST", body: { password: "negozio" }, ip: "198.51.100.9" }, env({ SELLER_PASSWORD: "negozio", EDITOR_PASSWORD: "" }));
+    const burned = await call("/api/login", { method: "POST", body: { password: "negozio" }, ip: "198.51.100.9" }, env({ SELLER_PASSWORD: "negozio", ADMIN_PASSWORD: "" }));
     assert.equal(burned.status, 503);
-    const bare = await call("/api/login", { method: "POST", body: { password: SELLER }, ip: "198.51.100.10" }, env({ SELLER_PASSWORD: "", EDITOR_PASSWORD: "" }));
+    const bare = await call("/api/login", { method: "POST", body: { password: SELLER }, ip: "198.51.100.10" }, env({ SELLER_PASSWORD: "", ADMIN_PASSWORD: "" }));
     assert.equal(bare.status, 503);
-    const same = await call("/api/login", { method: "POST", body: { password: SELLER }, ip: "198.51.100.11" }, env({ SELLER_PASSWORD: SELLER, EDITOR_PASSWORD: SELLER }));
+    const same = await call("/api/login", { method: "POST", body: { password: SELLER }, ip: "198.51.100.11" }, env({ SELLER_PASSWORD: SELLER, ADMIN_PASSWORD: SELLER }));
     assert.equal(same.status, 503);
   });
 
