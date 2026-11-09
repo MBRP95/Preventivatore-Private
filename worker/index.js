@@ -1,7 +1,7 @@
 // Backend del preventivatore luce e gas.
 // Secret da impostare su Cloudflare (wrangler secret put), mai nel codice:
 //   SELLER_PASSWORD   password dello shop assistant
-//   EDITOR_PASSWORD   password di chi pubblica i listini luce e gas
+//   ADMIN_PASSWORD   password di chi pubblica i listini luce e gas
 //   GITHUB_TOKEN      PAT con Contents su MBRP95/Preventivatore, solo index.html di main
 //   OFFLINE_SIGNING_JWK  chiave privata ECDSA P-256, generata con node worker/generate-offline-key.mjs
 // Binding KV: SESSIONS. Senza questo binding il login viene rifiutato, perché il logout
@@ -67,15 +67,15 @@ function usableSecret(value) {
 
 async function matchRole(password, env) {
   const seller = usableSecret(env.SELLER_PASSWORD);
-  const editor = usableSecret(env.EDITOR_PASSWORD);
-  if (!seller && !editor) return { error: "unconfigured" };
-  if (seller && editor && seller === editor) return { error: "unconfigured" };
+  const admin = usableSecret(env.ADMIN_PASSWORD);
+  if (!seller && !admin) return { error: "unconfigured" };
+  if (seller && admin && seller === admin) return { error: "unconfigured" };
   const got = await sha256(password);
-  const editorDigest = await sha256(editor || "editor-unset");
+  const adminDigest = await sha256(editor || "admin-unset");
   const sellerDigest = await sha256(seller || "seller-unset");
-  const editorOk = !!editor && sameBytes(got, editorDigest);
+  const adminOk = !!admin && sameBytes(got, adminDigest);
   const sellerOk = !!seller && sameBytes(got, sellerDigest);
-  if (editorOk) return { role: "editor" };
+  if (adminOk) return { role: "admin" };
   if (sellerOk) return { role: "seller" };
   return { error: "invalid" };
 }
@@ -121,7 +121,7 @@ async function readSession(env, request) {
     await env.SESSIONS.delete("sess:" + id);
     return null;
   }
-  if (row.role !== "seller" && row.role !== "editor") return null;
+  if (row.role !== "seller" && row.role !== "admin") return null;
   return { id, ...row };
 }
 
@@ -264,7 +264,7 @@ async function offlinePubkey(env) {
 async function adminFiles(request, env) {
   const gate = await requireSession(request, env);
   if (gate.error) return gate.error;
-  if (gate.session.role !== "editor") return json({ error: "Operazione riservata all'editor dei listini." }, 403);
+  if (gate.session.role !== "admin") return json({ error: "Operazione riservata all'amministratore." }, 403);
   const file = await readListini(env);
   if (file.error) return json({ error: file.error }, file.status || 502);
   return json({ html: file.html });
@@ -274,7 +274,7 @@ async function adminPublish(request, env) {
   const gate = await requireSession(request, env);
   if (gate.error) return gate.error;
   if (!csrfOk(request, gate.session)) return json({ error: "Richiesta non valida." }, 403);
-  if (gate.session.role !== "editor") return json({ error: "Operazione riservata all'editor dei listini." }, 403);
+  if (gate.session.role !== "admin") return json({ error: "Operazione riservata all'amministratore." }, 403);
   let body = {};
   try { body = await request.json(); } catch (e) { body = {}; }
   const html = String(body.html || "");
