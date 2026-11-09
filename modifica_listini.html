@@ -1244,25 +1244,38 @@ async function shellWithCatalog(remoteText){
 }
 if(location.protocol==="http:"||location.protocol==="https:"){
   (async()=>{
+    const status=$("status");
+    status.textContent="Verifica della sessione editor in corso…";
     try{
       const res=await fetch("/api/session",{credentials:"same-origin",cache:"no-store"});
-      if(!res.ok) return;
-      const session=await res.json();
-      if(!session||session.role!=="editor") return;
+      if(res.status===401){
+        status.textContent="Sessione non attiva o scaduta. Torna alla pagina iniziale ed effettua di nuovo l'accesso come Admin/Editor.";
+        return;
+      }
+      const session=await res.json().catch(()=>({}));
+      if(!res.ok) throw Error(session.error||"Impossibile verificare la sessione editor (HTTP "+res.status+").");
+      if(!session||session.role!=="editor"){
+        status.textContent="Ruolo non autorizzato: questa pagina richiede una sessione Admin/Editor. Esci e accedi con le credenziali corrette.";
+        return;
+      }
       csrfToken=session.csrf||"";
+      if(!csrfToken) throw Error("Sessione editor valida ma token di sicurezza CSRF mancante. Esci e accedi di nuovo.");
+      status.textContent="Sessione verificata. Caricamento dei listini…";
       const fileRes=await fetch("/api/admin/files",{credentials:"same-origin",cache:"no-store"});
       const data=await fileRes.json().catch(()=>({}));
-      if(!fileRes.ok) throw Error(data.error||"File dei listini non letto.");
+      if(fileRes.status===401) throw Error("Sessione scaduta durante il caricamento. Accedi di nuovo come Admin/Editor.");
+      if(fileRes.status===403) throw Error(data.error||"Il server non riconosce i permessi Admin/Editor per questa sessione.");
+      if(!fileRes.ok) throw Error(data.error||"Impossibile leggere i listini (HTTP "+fileRes.status+").");
       publishMode=true;
       $("fileGestionale").closest("label").classList.add("hidden");
       $("fileCliente").closest("label").classList.add("hidden");
       $("download").textContent="Pubblica listini";
       const html=await shellWithCatalog(data.html||"");
-      if(kindOf(html)!=="unito") throw Error("Il file dei listini non è l'index del sito.");
+      if(kindOf(html)!=="unito") throw Error("Il file dei listini ricevuto dal server non è l'index del sito.");
       loadCombined(html,"index.html");
-      $("status").textContent="Listino letto dal sito. Pubblica per aggiornarlo."+scheduleLoadedNote();
+      status.textContent="Listino caricato correttamente. Pubblica per aggiornarlo."+scheduleLoadedNote();
     }catch(err){
-      $("status").textContent=err&&err.message?err.message:String(err);
+      status.textContent="Errore caricamento editor: "+(err&&err.message?err.message:String(err));
     }
   })();
 }
