@@ -333,7 +333,23 @@ function patchEditorFallback(html) {
     '      $("reset").disabled=true;',
     '      $("status").textContent="Caricamento online non riuscito: "+(err&&err.message?err.message:String(err))+" Puoi continuare caricando manualmente Gestionale e Preventivo cliente.";',
   ].join("\n");
-  return html.includes(before) ? html.replace(before, after) : html;
+  let patched = html.includes(before) ? html.replace(before, after) : html;
+  const parserPatches = [
+    [
+      'id="promo-catalog">([\\s\\S]*?)%%EDITOR_ESCAPED_SCRIPT%%>',
+      'id="promo-catalog">([\\s\\S]*?)(?:%%EDITOR_ESCAPED_SCRIPT%%>|\\x3C\\/script>)'
+    ],
+    [
+      'id="promo-catalog-next">([\\s\\S]*?)%%EDITOR_ESCAPED_SCRIPT%%>',
+      'id="promo-catalog-next">([\\s\\S]*?)(?:%%EDITOR_ESCAPED_SCRIPT%%>|\\x3C\\/script>)'
+    ],
+    [
+      'id="promo-catalog-next">[\\s\\S]*?%%EDITOR_ESCAPED_SCRIPT%%>',
+      'id="promo-catalog-next">[\\s\\S]*?(?:%%EDITOR_ESCAPED_SCRIPT%%>|\\x3C\\/script>)'
+    ]
+  ];
+  for (const [from, to] of parserPatches) patched = patched.replace(from, to);
+  return patched;
 }
 
 export async function handle(request, env) {
