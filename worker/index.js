@@ -355,6 +355,10 @@ function patchEditorFallback(html) {
   for (const [from, to] of parserPatches) patched = patched.replaceAll(from, to);
   // Il ruolo privilegiato del backend è admin: allinea il bootstrap dell'editor incorporato.
   patched = patched.replaceAll('session.role!=="editor"', 'session.role!=="admin"');
+  // Allinea il gate principale: admin apre l'editor, seller apre il gestionale.
+  patched = patched.replaceAll('payload.role!=="seller"&&payload.role!=="editor"', 'payload.role!=="seller"&&payload.role!=="admin"');
+  patched = patched.replaceAll('if(role==="editor")', 'if(role==="admin")');
+  patched = patched.replaceAll('session.role==="seller"||session.role==="editor"', 'session.role==="seller"||session.role==="admin"');
   return patched;
 }
 
