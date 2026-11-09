@@ -1,8 +1,18 @@
-
 {
   "name": "preventivatore",
   "compatibility_date": "2026-11-04",
+  "main": "worker/index.js",
   "assets": {
-    "directory": "./"
-  }
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "SESSIONS",
+      "id": "9e4c798e55aa407fa32f1c2734a13231"
+    }
+  ]
 }
