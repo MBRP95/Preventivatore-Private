@@ -346,9 +346,13 @@ function patchEditorFallback(html) {
     [
       'id="promo-catalog-next">[\\s\\S]*?%%EDITOR_ESCAPED_SCRIPT%%>',
       'id="promo-catalog-next">[\\s\\S]*?(?:%%EDITOR_ESCAPED_SCRIPT%%>|\\x3C\\/script>)'
+    ],
+    [
+      'id="promo-catalog">[\\s\\S]*?%%EDITOR_ESCAPED_SCRIPT%%>',
+      'id="promo-catalog">[\\s\\S]*?(?:%%EDITOR_ESCAPED_SCRIPT%%>|\\x3C\\/script>)'
     ]
   ];
-  for (const [from, to] of parserPatches) patched = patched.replace(from, to);
+  for (const [from, to] of parserPatches) patched = patched.replaceAll(from, to);
   return patched;
 }
 
