@@ -2,6 +2,6 @@
 # Le password devono essere nuove, di almeno 8 caratteri, diverse tra loro.
 # Non riusare negozio, admin, 1001 o 1002.
 SELLER_PASSWORD=
-EDITOR_PASSWORD=
+ADMIN_PASSWORD=
 GITHUB_TOKEN=
 OFFLINE_SIGNING_JWK=

@@ -71,7 +71,7 @@ export async function verifyOfflineToken(token, publicJwk, nowMs) {
     return { ok: false, reason: "malformed" };
   }
   if (!payload || payload.v !== 1) return { ok: false, reason: "malformed" };
-  if (payload.role !== "seller" && payload.role !== "editor") return { ok: false, reason: "malformed" };
+  if (payload.role !== "seller" && payload.role !== "admin") return { ok: false, reason: "malformed" };
   if (payload.sub !== payload.role) return { ok: false, reason: "malformed" };
   if (!Number.isFinite(payload.iat) || !Number.isFinite(payload.exp) || !payload.jti) return { ok: false, reason: "malformed" };
   if ((payload.exp - payload.iat) * 1000 > OFFLINE_TTL_SEC * 1000 + 5000) return { ok: false, reason: "lifetime" };
