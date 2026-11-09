@@ -1351,8 +1351,6 @@ if(!window.__SITE){
   githubUrl=parentUpdateUrl();
   if(githubTarget(githubUrl)){
     githubMode=true;
-    $("fileGestionale").closest("label").classList.add("hidden");
-    $("fileCliente").closest("label").classList.add("hidden");
     $("githubBox").classList.remove("hidden");
     $("download").textContent="Salva su GitHub";
     const hint=document.querySelector("#siteAccess .hint");
@@ -1366,6 +1364,8 @@ if(!window.__SITE){
         const text=await res.text();
         if(kindOf(text)!=="unito") throw Error("Il file su GitHub non è l'index del sito.");
         loadCombined(await shellWithCatalog(text),"index.html");
+        $("fileGestionale").closest("label").classList.add("hidden");
+        $("fileCliente").closest("label").classList.add("hidden");
         $("status").textContent="Listino letto da GitHub. Salva per pubblicarlo."+scheduleLoadedNote();
       }catch(err){
         $("status").textContent=err&&err.message?err.message:String(err);
