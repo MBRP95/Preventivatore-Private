@@ -71,7 +71,7 @@ async function matchRole(password, env) {
   if (!seller && !admin) return { error: "unconfigured" };
   if (seller && admin && seller === admin) return { error: "unconfigured" };
   const got = await sha256(password);
-  const adminDigest = await sha256(editor || "admin-unset");
+  const adminDigest = await sha256(admin || "admin-unset");
   const sellerDigest = await sha256(seller || "seller-unset");
   const adminOk = !!admin && sameBytes(got, adminDigest);
   const sellerOk = !!seller && sameBytes(got, sellerDigest);
