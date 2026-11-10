@@ -4113,7 +4113,7 @@ boot();
     if(note){note.textContent="Apro l'editor.";note.classList.remove("hidden")}
     try{
       const embedded=document.getElementById("editor-app");
-      let html=embedded?embedded.textContent.replace(/<\\\/script/gi,"</script").replace(/%%EDITOR_ESCAPED_SCRIPT%%/g,"<\\/script"):"";
+      let html=embedded?embedded.textContent.replace(/<\\\/script>(?=\s*<(?:script|\/body))/gi,"<\/script>").replace(/%%EDITOR_ESCAPED_SCRIPT%%/g,"<\\/script"):"";
       if(!(html.includes('id="editorBack"')&&html.includes('id="download"'))) html="";
       if(!html&&location.protocol!=="file:"){
         try{
