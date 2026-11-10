@@ -50,6 +50,12 @@
   #liveFrom{max-width:220px}
   footer{max-width:1100px;margin:0 auto;padding:8px 18px 22px;display:flex;justify-content:flex-end}
   footer .credit{text-align:right;font-style:italic;font-size:12px;color:#756f58}
+
+  details.panel{padding-top:14px}
+  details.panel>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:18px;font-weight:800;margin:0 0 8px;user-select:none}
+  details.panel>summary::-webkit-details-marker{display:none}
+  details.panel>summary::after{content:"＋";flex:0 0 auto;width:28px;height:28px;border:2px solid #111;border-radius:8px;background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}
+  details.panel[open]>summary::after{content:"−"}
 </style>
 </head>
 <body>
@@ -72,13 +78,11 @@
     </div>
     <div id="status" class="status">Nessun file caricato.</div>
   </section>
-  <section class="panel hidden" id="scheduleBox">
-    <h2>Entra in vigore</h2>
+  <details class="panel hidden fold" id="scheduleBox"><summary>Entra in vigore</summary>
     <label class="pwd">Data<input id="liveFrom" type="date"></label>
     <p class="hint" id="scheduleHint">Lascia vuoto per applicare subito il listino che vedi. Con una data futura i negozi tengono il listino di oggi fino a quella mezzanotte (ora di Roma) e poi passano a questo.</p>
-  </section>
-  <section class="panel" id="accessBox">
-    <h2>Password di accesso</h2>
+  </details>
+  <details class="panel fold" id="accessBox"><summary>Password di accesso</summary>
     <p class="hint">Su Cloudflare puoi cambiare shop e admin. Su GitHub Pages (Firebase) cambi solo la password del ruolo con cui sei entrato; l’altra si cambia in Firebase Authentication → Users. Minimo 8 caratteri.</p>
     <label class="pwd">Nuova password shop assistant<input id="sellerPass" type="password" autocomplete="new-password"></label>
     <label class="pwd">Ripeti shop assistant<input id="sellerPass2" type="password" autocomplete="new-password"></label>
@@ -86,7 +90,7 @@
     <label class="pwd">Ripeti admin<input id="adminPass2" type="password" autocomplete="new-password"></label>
     <div class="actions"><button type="button" id="savePasswords" class="secondary">Aggiorna password</button></div>
     <p id="passwordStatus" class="hint"></p>
-  </section>
+  </details>
   <div id="editor" class="hidden"></div>
 </main>
 <footer><span class="credit">Created by Maria Beatriz Ragucci Polato</span></footer>
@@ -578,7 +582,7 @@ function flyerPanel(){
   const pages=currentFlyers();
   const handles=["nw","ne","sw","se"].map(h=>`<i class="flyer-handle ${h}" data-h="${h}"></i>`).join("");
   const stages=pages.length?pages.map((src,i)=>`<div class="flyer-pick"><p class="hint">Pagina ${i+1}. Trascina sulla pagina per disegnare il pulsante. Trascinalo per spostarlo, usa gli angoli per ingrandirlo o ridurlo.</p><div class="flyer-canvas" data-i="${i}"><img alt="Volantino ${i+1}" draggable="false" src="${src}"><div class="flyer-box" hidden><span class="flyer-label">Calcola il preventivo per te! →</span>${handles}</div></div><div class="actions" style="margin-top:8px"><button type="button" class="secondary flyer-clear">Cancella pulsante</button></div></div>`).join(""):`<p class="hint">Nessun volantino in questo file.</p>`;
-  return `<section class="panel"><h2>Volantini</h2>${stages}<div class="actions" style="margin-top:12px"><label class="file">Carica PDF volantini<input id="flyerFile" type="file" accept="application/pdf,.pdf"></label></div><p id="flyerStatus" class="hint">${flyerStatusText()}</p></section>`;
+  return `<details class="panel fold"><summary>Volantini</summary>${stages}<div class="actions" style="margin-top:12px"><label class="file">Carica PDF volantini<input id="flyerFile" type="file" accept="application/pdf,.pdf"></label></div><p id="flyerStatus" class="hint">${flyerStatusText()}</p></details>`;
 }
 function bindFlyerInput(){
   const input=$("flyerFile");
@@ -735,12 +739,12 @@ function renderEditor(){
     :"";
   $("editor").innerHTML=`
     ${flyerPanel()}
-    <section class="panel"><h2>Promo Energia FLAT</h2>
+    <details class="panel fold"><summary>Promo Energia FLAT</summary>
       ${flatShared}
       ${flatTable("Luce",c.flat.light,"light","kWh")}
       ${flatTable("Gas",c.flat.gas,"gas","Smc")}
-    </section>
-    <section class="panel"><h2>Fix e Flex</h2>
+    </details>
+    <details class="panel fold"><summary>Fix e Flex</summary>
       <h3>Indici PUN e PSV</h3>
       <table><thead><tr><th>Mese</th><th>PUN €/kWh</th><th>PSV €/Smc</th></tr></thead><tbody>
         ${indexRowsHtml(c.indices.series)}
@@ -751,7 +755,7 @@ function renderEditor(){
       ${commodityGroup("Luce P.IVA",c.commodity.light.piva,"commodity.light.piva")}
       ${commodityGroup("Gas privato",c.commodity.gas.private,"commodity.gas.private")}
       ${commodityGroup("Gas P.IVA",c.commodity.gas.piva,"commodity.gas.piva")}
-    </section>`;
+    </details>`;
   $("editor").classList.remove("hidden");
   bindFlyerInput();
   bindFlyerDraw();
