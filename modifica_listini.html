@@ -1254,7 +1254,7 @@ if(location.protocol==="http:"||location.protocol==="https:"){
       }
       const session=await res.json().catch(()=>({}));
       if(!res.ok) throw Error(session.error||"Impossibile verificare la sessione editor (HTTP "+res.status+").");
-      if(!session||session.role!=="editor"){
+      if(!session||session.role!=="admin"){
         status.textContent="Ruolo non autorizzato: questa pagina richiede una sessione Admin/Editor. Esci e accedi con le credenziali corrette.";
         return;
       }

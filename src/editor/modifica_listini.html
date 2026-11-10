@@ -1248,7 +1248,7 @@ if(location.protocol==="http:"||location.protocol==="https:"){
       const res=await fetch("/api/session",{credentials:"same-origin",cache:"no-store"});
       if(!res.ok) return;
       const session=await res.json();
-      if(!session||session.role!=="editor") return;
+      if(!session||session.role!=="admin") return;
       csrfToken=session.csrf||"";
       const fileRes=await fetch("/api/admin/files",{credentials:"same-origin",cache:"no-store"});
       const data=await fileRes.json().catch(()=>({}));
