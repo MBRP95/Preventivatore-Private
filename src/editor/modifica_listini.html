@@ -82,16 +82,15 @@
     <label class="pwd">Data<input id="liveFrom" type="date"></label>
     <p class="hint" id="scheduleHint">Lascia vuoto per applicare subito il listino che vedi. Con una data futura i negozi tengono il listino di oggi fino a quella mezzanotte (ora di Roma) e poi passano a questo.</p>
   </section>
-  <section class="panel" id="accessBox"><h2>Password di accesso</h2>
-    <p class="hint">Solo l’admin cambia le password da qui. Su GitHub Pages, per lo shop serve anche la password shop attuale. Minimo 8 caratteri.</p>
-    <label class="pwd">Password shop attuale (solo se cambi lo shop)<input id="sellerPassCurrent" type="password" autocomplete="current-password"></label>
+  <details class="panel" id="accessBox"><summary>Password di accesso</summary>
+    <p class="hint">Solo l’admin cambia le password da qui. Minimo 8 caratteri. La password shop non richiede quella attuale.</p>
     <label class="pwd">Nuova password shop assistant<input id="sellerPass" type="password" autocomplete="new-password"></label>
     <label class="pwd">Ripeti shop assistant<input id="sellerPass2" type="password" autocomplete="new-password"></label>
     <label class="pwd">Nuova password admin<input id="adminPass" type="password" autocomplete="new-password"></label>
     <label class="pwd">Ripeti admin<input id="adminPass2" type="password" autocomplete="new-password"></label>
     <div class="actions"><button type="button" id="savePasswords" class="secondary">Aggiorna password</button></div>
     <p id="passwordStatus" class="hint"></p>
-  </section>
+  </details>
   <div id="editor" class="hidden"></div>
 </main>
 <footer><span class="credit">Created by Maria Beatriz Ragucci Polato</span></footer>
@@ -1301,37 +1300,33 @@ if(savePasswords){
       const firebaseMode=(editorParent&&editorParent.__staffSource==="firebase")||(!csrfToken&&(/github\.io$/i.test((editorParent&&editorParent.location&&editorParent.location.hostname)||location.hostname)));
       if(firebaseMode){
         const api=editorParent&&editorParent.firebaseApi;
-        if(!(api&&api.auth&&api.auth.currentUser&&api.updatePassword&&api.signInWithEmailAndPassword)){
+        if(!(api&&api.auth&&api.auth.currentUser&&api.updatePassword)){
           throw Error("Sessione Firebase assente. Esci e accedi di nuovo come Admin.");
         }
         const role=editorParent.__staffRole||"";
         if(role!=="admin"){
           throw Error("Solo l'admin può cambiare le password da qui.");
         }
-        const sellerCurrent=(($("sellerPassCurrent")&&$("sellerPassCurrent").value)||"");
-        const emails=(editorParent.FIREBASE_STAFF_EMAILS&&editorParent.FIREBASE_STAFF_EMAILS.length)?editorParent.FIREBASE_STAFF_EMAILS:["shop@preventivatore.invalid","admin@preventivatore.invalid"];
-        const shopEmail=emails.find(e=>String(e).indexOf("shop@")===0)||emails[0];
         const notes=[];
         if(seller){
-          if(!sellerCurrent||sellerCurrent.length<8) throw Error("Per cambiare la password shop inserisci anche la password shop attuale.");
-          if(sellerCurrent===seller) throw Error("La nuova password shop deve essere diversa da quella attuale.");
-          const secondary=editorParent.__firebaseSecondary||null;
-          let shopAuthApi=secondary;
-          if(!shopAuthApi){
-            // reuse main app auth in a separate named app created on parent
-            throw Error("Modulo Firebase secondario assente. Ricarica la pagina e riprova.");
+          if(!(api.setDoc&&api.doc&&api.pbkdf2Hex&&api.randomSaltHex)){
+            throw Error("Funzioni Firebase incomplete. Ricarica la pagina e riprova.");
           }
-          const shopCred=await shopAuthApi.signInWithEmailAndPassword(shopAuthApi.auth, shopEmail, sellerCurrent);
-          await shopAuthApi.updatePassword(shopCred.user, seller);
-          try{await shopAuthApi.signOut(shopAuthApi.auth)}catch(e){}
+          if(admin&&admin===seller) throw Error("Shop assistant e admin devono avere password diverse.");
+          const salt=api.randomSaltHex();
+          const iter=310000;
+          const hash=await api.pbkdf2Hex(seller, salt, iter);
+          const payload={v:1, sellerSalt:salt, sellerHash:hash, sellerIter:iter};
+          if(api.serverTimestamp) payload.updatedAt=api.serverTimestamp();
+          else payload.updatedAt=new Date().toISOString();
+          await api.setDoc(api.doc(api.db,"access","passwords"), payload);
           notes.push("password shop");
         }
         if(admin){
-          if(admin===seller) throw Error("Shop assistant e admin devono avere password diverse.");
+          if(seller&&admin===seller) throw Error("Shop assistant e admin devono avere password diverse.");
           await api.updatePassword(api.auth.currentUser, admin);
           notes.push("password admin");
         }
-        if($("sellerPassCurrent")) $("sellerPassCurrent").value="";
         $("sellerPass").value=""; $("sellerPass2").value=""; $("adminPass").value=""; $("adminPass2").value="";
         say("Aggiornate: "+notes.join(" e ")+". Al prossimo accesso usa le nuove password.");
         return;

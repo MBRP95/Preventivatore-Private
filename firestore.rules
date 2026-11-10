@@ -4,11 +4,36 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null;
     }
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isPreventivatoreAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc().role == 'admin'
+        && userDoc().active == true
+        && userDoc().app == 'preventivatore';
+    }
 
-    // Ogni utente autenticato legge solo il proprio profilo (role/active/app).
     match /users/{userId} {
       allow get: if signedIn() && request.auth.uid == userId;
       allow list, create, update, delete: if false;
+    }
+
+    // Hash shop (PBKDF2+sale): lettura per il login, scrittura solo admin.
+    match /access/{docId} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if isPreventivatoreAdmin()
+        && docId == 'passwords'
+        && request.resource.data.keys().hasOnly(['v', 'sellerSalt', 'sellerHash', 'sellerIter', 'updatedAt'])
+        && request.resource.data.v == 1
+        && request.resource.data.sellerSalt is string
+        && request.resource.data.sellerHash is string
+        && request.resource.data.sellerIter is int
+        && request.resource.data.sellerIter >= 100000
+        && request.resource.data.sellerIter <= 500000;
+      allow delete: if isPreventivatoreAdmin() && docId == 'passwords';
     }
   }
 }
