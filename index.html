@@ -874,7 +874,7 @@ if (!firebaseConfigured()) {
 <header><h1>Gestionale preventivi energia</h1><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button><button type="button" id="downloadHtml">Scarica HTML per uso locale</button></div></header>
 <main>
 <section class="panel" open><h2>1. Archivio sul computer</h2>
-<p class="note">La cartella può essere quella di OneDrive. Su Firefox i preventivi restano in questo browser e si riaprono da soli.</p>
+<p class="note">La cartella può essere quella di OneDrive. Su Firefox la funzione archivio è disabilitata: usa Chrome o Edge.</p>
 <div class="actions"><button id="chooseFolder">Seleziona cartella sul computer</button><button class="secondary" id="loadArchive" disabled>Rileggi la cartella</button><input id="folderPickerFallback" type="file" class="hidden" webkitdirectory multiple></div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
 <section class="panel" open><h2>2. Dati del cliente e del negozio</h2><div class="grid">
 <label>Nome e cognome cliente<input id="name" placeholder="Mario Rossi"></label>
@@ -1585,8 +1585,13 @@ function firefoxDirHandle(store,dirPath){const name=dirPath?dirPath.split("/").p
 function relPathOf(file){return String(file.webkitRelativePath||file._rel||file.name||"").replace(/\\/g,"/")}
 function archivePathFromRel(rel){const parts=String(rel||"").split("/").filter(Boolean);if(!parts.length)return null;const leaf=parts[parts.length-1].toLowerCase();if(!leaf.endsWith(".json"))return null;const dati=parts.findIndex(p=>p.toLowerCase()==="dati");if(dati>=0)return parts.slice(dati).join("/");const prev=parts.findIndex(p=>p.toLowerCase()==="preventivi");if(prev>=0)return "dati/"+parts.slice(prev).join("/");const cest=parts.findIndex(p=>p.toLowerCase()==="cestino");if(cest>=0)return "dati/"+parts.slice(cest).join("/");if(leaf==="clienti.json")return "dati/clienti.json";return null}
 function isArchiveJson(arch){const lower=String(arch||"").toLowerCase();if(lower==="dati/clienti.json"||lower==="dati/ultimo-numero.json")return true;if(lower.startsWith("dati/preventivi/")&&!lower.slice("dati/preventivi/".length).includes("/"))return true;if(lower.startsWith("dati/cestino/")&&!lower.slice("dati/cestino/".length).includes("/"))return true;return false}
-async function importFirefoxFolder(fileList){const files=[...fileList];if(!files.length){if(!folderHandle)$("folderStatus").textContent="Nessuna cartella selezionata. Lo storico resta sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.";return}const folderName=(relPathOf(files[0]).split("/")[0])||"Archivio";const accepted=[];for(const file of files){const arch=archivePathFromRel(relPathOf(file));if(isArchiveJson(arch))accepted.push({file,arch})}let store=await readFirefoxStore();if(!accepted.length){if(store){store.hint="Nessun preventivo trovato: seleziona la cartella che contiene dati.";folderHandle=firefoxDirHandle(store,"");enableArchiveButtons();await loadArchive();return}store={name:folderName,files:{},dirs:new Set(),hint:"Nessun preventivo trovato: seleziona la cartella che contiene dati."}}else if(!store||store.name!==folderName)store={name:folderName,files:{},dirs:new Set(),hint:""};else store.hint="";let imported=0;for(const item of accepted){const text=await item.file.text();const mtime=Number(item.file.lastModified)||Date.now();const prev=store.files[item.arch];if(!prev||mtime>=(prev.mtime||0)){store.files[item.arch]={text,mtime};imported++}}for(const d of ["dati","dati/preventivi","dati/cestino","documenti"])store.dirs.add(d);if(!imported&&!Object.keys(store.files).length)store.hint="Nessun preventivo trovato: seleziona la cartella che contiene dati.";await persistFirefoxStore(store);folderHandle=firefoxDirHandle(store,"");enableArchiveButtons();await loadArchive()}
+async function importFirefoxFolder(fileList){
+  $("folderStatus").textContent="Funzione disabilitata per Firefox. Usa Chrome o Edge.";
+  return;
+  /* archivio Firefox disabilitato */
+const files=[...fileList];if(!files.length){if(!folderHandle)$("folderStatus").textContent="Nessuna cartella selezionata. Lo storico resta sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.";return}const folderName=(relPathOf(files[0]).split("/")[0])||"Archivio";const accepted=[];for(const file of files){const arch=archivePathFromRel(relPathOf(file));if(isArchiveJson(arch))accepted.push({file,arch})}let store=await readFirefoxStore();if(!accepted.length){if(store){store.hint="Nessun preventivo trovato: seleziona la cartella che contiene dati.";folderHandle=firefoxDirHandle(store,"");enableArchiveButtons();await loadArchive();return}store={name:folderName,files:{},dirs:new Set(),hint:"Nessun preventivo trovato: seleziona la cartella che contiene dati."}}else if(!store||store.name!==folderName)store={name:folderName,files:{},dirs:new Set(),hint:""};else store.hint="";let imported=0;for(const item of accepted){const text=await item.file.text();const mtime=Number(item.file.lastModified)||Date.now();const prev=store.files[item.arch];if(!prev||mtime>=(prev.mtime||0)){store.files[item.arch]={text,mtime};imported++}}for(const d of ["dati","dati/preventivi","dati/cestino","documenti"])store.dirs.add(d);if(!imported&&!Object.keys(store.files).length)store.hint="Nessun preventivo trovato: seleziona la cartella che contiene dati.";await persistFirefoxStore(store);folderHandle=firefoxDirHandle(store,"");enableArchiveButtons();await loadArchive()}
 async function restoreFirefoxArchive(){
+  return; // disabilitato: niente archivio nel browser
   if("showDirectoryPicker"in window)return;
   try{
     const store=await readFirefoxStore();
@@ -1614,7 +1619,7 @@ async function chooseFolder(){
     }
     return;
   }
-  $("folderPickerFallback").click();
+  $("folderStatus").textContent="Funzione disabilitata per Firefox. Per salvare i preventivi usa Chrome o Edge e seleziona una cartella sul computer (anche OneDrive).";
 }
 async function readJsonFiles(dir){const arr=[];for await(const [name,h] of dir.entries())if(h.kind==="file"&&name.endsWith(".json")){try{arr.push({name,data:JSON.parse(await(await h.getFile()).text())})}catch(e){}}return arr}
 function normalizeQuote(q){
@@ -2793,8 +2798,11 @@ fxFillOfferSelects();
 renderCommodityRateTables();
 fxToggleBoxes();
 setToolMode("mix");
-if(!("showDirectoryPicker"in window))$("folderStatus").textContent="Su Firefox l'archivio resta in questo browser. Seleziona la cartella, anche quella di OneDrive, per aggiornarlo."
-restoreFirefoxArchive();
+if(!("showDirectoryPicker"in window)){
+  $("folderStatus").textContent="Funzione disabilitata per Firefox. Per salvare i preventivi usa Chrome o Edge con una cartella sul computer (anche OneDrive).";
+  if($("chooseFolder")) $("chooseFolder").disabled=true;
+  if($("loadArchive")) $("loadArchive").disabled=true;
+}
 
 })();
 </script>
