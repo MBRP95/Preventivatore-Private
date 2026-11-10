@@ -353,6 +353,10 @@ function patchEditorFallback(html) {
     ]
   ];
   for (const [from, to] of parserPatches) patched = patched.replaceAll(from, to);
+  // L’editor viene scritto in un iframe about:blank: usa l’origine della pagina contenitrice per avviare il caricamento online.
+  patched = patched.replaceAll('if(location.protocol==="http:"||location.protocol==="https:"){', 'if(location.protocol==="http:"||location.protocol==="https:"||(window.parent&&window.parent!==window&&/^https?:$/.test(window.parent.location.protocol))){');
+  patched = patched.replaceAll('fetch("/api/session",{credentials:"same-origin",cache:"no-store"})', 'fetch(new URL("/api/session",window.parent&&window.parent!==window?window.parent.location.href:location.href),{credentials:"same-origin",cache:"no-store"})');
+  patched = patched.replaceAll('fetch("/api/admin/files",{credentials:"same-origin",cache:"no-store"})', 'fetch(new URL("/api/admin/files",window.parent&&window.parent!==window?window.parent.location.href:location.href),{credentials:"same-origin",cache:"no-store"})');
   // Il ruolo privilegiato del backend è admin: allinea il bootstrap dell'editor incorporato.
   patched = patched.replaceAll('session.role!=="editor"', 'session.role!=="admin"');
   // Allinea il gate principale: admin apre l'editor, seller apre il gestionale.
