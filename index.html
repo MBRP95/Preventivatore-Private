@@ -299,7 +299,7 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 <div id="gate">
 <form id="gateForm">
 <h1>Shop Assistant</h1>
-<p id="gateLead">Inserisci la password. Su GitHub Pages la verifica Firebase (come ListinoSmartphones); con Cloudflare resta il Worker. Le password non stanno nel file del sito.</p>
+<p id="gateLead">Inserisci la password. Su GitHub Pages la verifica il progetto Firebase del preventivatore; con Cloudflare resta il Worker. Le password non stanno nel file del sito.</p>
 <label>Password<input id="gatePassword" type="password" autocomplete="current-password"></label>
 <button type="submit">Entra</button>
 <p id="gateError" class="status hidden"></p>
@@ -309,26 +309,28 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, setPersistence, browserLocalPersistence, inMemoryPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-const firebaseConfig = {
-  apiKey: "AIzaSyA-FeADcnW89AOSuAZ-i3xnF7reReOcg2o",
-  authDomain: "deviceproposer.firebaseapp.com",
-  projectId: "deviceproposer",
-  storageBucket: "deviceproposer.firebasestorage.app",
-  messagingSenderId: "257823727896",
-  appId: "1:257823727896:web:783a061ee5239c0960be6d",
-  measurementId: "G-K0ED9BVXG6"
-};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-try {
-  await setPersistence(auth, browserLocalPersistence);
-} catch (e) {
-  try { await setPersistence(auth, inMemoryPersistence); } catch (e2) {}
+import { firebaseConfig, FIREBASE_STAFF_EMAILS, firebaseConfigured } from "./firebase-config.js";
+window.FIREBASE_STAFF_EMAILS = FIREBASE_STAFF_EMAILS;
+window.firebaseConfigured = firebaseConfigured;
+if (!firebaseConfigured()) {
+  window.firebaseApi = null;
+  window.firebaseReady = true;
+  window.firebaseConfigError = "Progetto Firebase del preventivatore non configurato. Compila firebase-config.js.";
+  window.dispatchEvent(new Event("firebase-ready"));
+} else {
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch (e) {
+    try { await setPersistence(auth, inMemoryPersistence); } catch (e2) {}
+  }
+  window.firebaseApi = { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, doc, getDoc };
+  window.firebaseReady = true;
+  window.firebaseConfigError = "";
+  window.dispatchEvent(new Event("firebase-ready"));
 }
-window.firebaseApi = { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, doc, getDoc };
-window.firebaseReady = true;
-window.dispatchEvent(new Event("firebase-ready"));
 </script>
 <script>
 "use strict";
@@ -436,10 +438,9 @@ window.dispatchEvent(new Event("firebase-ready"));
   }
   // Account Firebase del preventivatore (stesso progetto di ListinoSmartphones).
   // Le password stanno solo in Firebase Authentication, non nel file del sito.
-  const FIREBASE_STAFF_EMAILS=[
-    "preventivatore-shop@deviceproposer.invalid",
-    "preventivatore-admin@deviceproposer.invalid"
-  ];
+  function staffEmails(){
+    return (window.FIREBASE_STAFF_EMAILS&&window.FIREBASE_STAFF_EMAILS.length)?window.FIREBASE_STAFF_EMAILS:[];
+  }
   function waitFirebase(ms){
     if(window.firebaseReady&&window.firebaseApi) return Promise.resolve(window.firebaseApi);
     return new Promise(function(resolve,reject){
@@ -477,9 +478,17 @@ window.dispatchEvent(new Event("firebase-ready"));
     }catch(e){return null}
   }
   async function loginFirebase(password){
+    if(window.firebaseConfigured&&!window.firebaseConfigured()){
+      return {error:"unconfigured"};
+    }
+    if(window.firebaseConfigError&&!window.firebaseApi){
+      return {error:"unconfigured"};
+    }
     const api=await waitFirebase(8000);
+    if(!api) return {error:"unconfigured"};
+    if(!staffEmails().length) return {error:"unconfigured"};
     let last="invalid";
-    for(const email of FIREBASE_STAFF_EMAILS){
+    for(const email of staffEmails()){
       try{
         const cred=await api.signInWithEmailAndPassword(api.auth, email, password);
         const found=await firebaseRoleFromUser(api, cred.user);
@@ -541,6 +550,7 @@ window.dispatchEvent(new Event("firebase-ready"));
     async function viaFirebase(){
       try{
         const pages=await loginFirebase(value);
+        if(pages.error==="unconfigured"){showError(window.firebaseConfigError||"Progetto Firebase del preventivatore non configurato (firebase-config.js).");return}
         if(pages.error==="invalid"){showError("Password non corretta.");return}
         if(pages.error==="missing-profile"){showError("Account Firebase senza profilo. Crea il documento users in Firestore.");return}
         if(pages.error==="inactive"){showError("Account disattivato.");return}

@@ -2,10 +2,11 @@
 # Le password devono essere nuove, di almeno 8 caratteri, diverse tra loro.
 # Non riusare negozio, admin, 1001 o 1002.
 #
-# Su GitHub Pages (VPN) l'accesso shop/admin usa Firebase Authentication
-# come ListinoSmartphones, progetto deviceproposer. Crea in Firebase Auth:
-#   preventivatore-shop@deviceproposer.invalid
-#   preventivatore-admin@deviceproposer.invalid
+# Su GitHub Pages (VPN) l'accesso shop/admin usa un progetto Firebase dedicato
+# (non deviceproposer di ListinoSmartphones). Compila firebase-config.js con i
+# valori dell'app Web, poi crea in Authentication:
+#   shop@preventivatore.invalid
+#   admin@preventivatore.invalid
 # e in Firestore users/{uid}: { role: "seller"|"admin", active: true, app: "preventivatore" }.
 # Le password stanno solo in Firebase, non in questo file né in index.html.
 SELLER_PASSWORD=
