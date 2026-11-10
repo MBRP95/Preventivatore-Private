@@ -339,7 +339,21 @@ details.panel[open]>summary::after{content:"−"}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, setPersistence, browserLocalPersistence, inMemoryPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-import { firebaseConfig, FIREBASE_STAFF_EMAILS, firebaseConfigured } from "./firebase-config.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyCSNyacPCgffrYsvSewW5XkAJ-fTK6FVZM",
+  authDomain: "preventivatore-43c03.firebaseapp.com",
+  projectId: "preventivatore-43c03",
+  storageBucket: "preventivatore-43c03.firebasestorage.app",
+  messagingSenderId: "731758475980",
+  appId: "1:731758475980:web:ec347c4cce7710d4d0a069"
+};
+const FIREBASE_STAFF_EMAILS = [
+  "shop@preventivatore.invalid",
+  "admin@preventivatore.invalid"
+];
+function firebaseConfigured(){
+  return !!(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId);
+}
 window.FIREBASE_STAFF_EMAILS = FIREBASE_STAFF_EMAILS;
 window.firebaseConfigured = firebaseConfigured;
 if (!firebaseConfigured()) {
@@ -396,6 +410,36 @@ if (!firebaseConfigured()) {
   const GRANT_KEY="preventivatore-offline-grant";
   const SKEW_MS=2*60*1000;
   const MAX_MS=30*24*60*60*1000;
+  async function pbkdf2HexLocal(password, saltHex, iterations){
+    const enc=new TextEncoder();
+    const key=await crypto.subtle.importKey("raw", enc.encode(String(password)), "PBKDF2", false, ["deriveBits"]);
+    const salt=Uint8Array.from(String(saltHex).match(/.{1,2}/g).map(h=>parseInt(h,16)));
+    const bits=await crypto.subtle.deriveBits({name:"PBKDF2", hash:"SHA-256", salt:salt, iterations:Number(iterations)||310000}, key, 256);
+    return Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,"0")).join("");
+  }
+  async function loginLocalAccess(password){
+    const row=window.__LOCAL_ACCESS;
+    if(!(row&&row.sellerHash&&row.sellerSalt)) return null;
+    try{
+      const got=await pbkdf2HexLocal(password, row.sellerSalt, row.sellerIter||310000);
+      if(got===String(row.sellerHash).toLowerCase()){
+        window.__staffRole="seller";
+        window.__staffSource="local-file";
+        return {role:"seller"};
+      }
+      if(row.adminHash&&row.adminSalt){
+        const gotAdmin=await pbkdf2HexLocal(password, row.adminSalt, row.adminIter||310000);
+        if(gotAdmin===String(row.adminHash).toLowerCase()){
+          window.__staffRole="admin";
+          window.__staffSource="local-file";
+          return {role:"admin"};
+        }
+      }
+      return {error:"invalid"};
+    }catch(e){
+      return {error:"local"};
+    }
+  }
   try{localStorage.removeItem("preventivatore-"+"github-token")}catch(e){}
   try{sessionStorage.removeItem("preventivatore-accesso")}catch(e){}
   function b64urlToBytes(text){
@@ -631,6 +675,14 @@ if (!firebaseConfigured()) {
     const input=document.getElementById("gatePassword");
     const value=input.value;
     input.value="";
+    async function viaLocal(){
+      const local=await loginLocalAccess(value);
+      if(!local) return false;
+      if(local.error==="invalid"){showError("Password non corretta.");return true}
+      if(local.error){showError("Accesso locale non riuscito. Riprova.");return true}
+      if(local.role){await openRole(local.role);return true}
+      return false;
+    }
     async function viaFirebase(){
       try{
         const pages=await loginFirebase(value);
@@ -651,8 +703,17 @@ if (!firebaseConfigured()) {
         showError("Accesso non riuscito. Riprova.");
       }
     }
+    if(await viaLocal()) return;
     if(onGitHubPages()){
       await viaFirebase();
+      return;
+    }
+    if(location.protocol==="file:"){
+      await viaFirebase();
+      const err=document.getElementById("gateError");
+      if(err&&!err.classList.contains("hidden")&&!window.__LOCAL_ACCESS){
+        err.textContent="Accesso non riuscito. Aggiorna la password shop online da Gestione password, poi scarica di nuovo il file.";
+      }
       return;
     }
     try{
@@ -2658,6 +2719,44 @@ async function downloadLocalHtml(){
       html=await res.text();
     }
     if(!html.includes('id="promo-catalog"'))throw Error("File non riconosciuto");
+    let localAccess=null;
+    try{
+      if(window.__LOCAL_ACCESS&&window.__LOCAL_ACCESS.sellerHash) localAccess=window.__LOCAL_ACCESS;
+    }catch(e){}
+    try{
+      const api=window.firebaseApi;
+      if(api&&api.getDoc&&api.doc&&api.db){
+        const snap=await api.getDoc(api.doc(api.db,"access","passwords"));
+        if(snap.exists()){
+          const row=snap.data()||{};
+          if(row.sellerHash&&row.sellerSalt){
+            localAccess={
+              v:1,
+              sellerSalt:String(row.sellerSalt),
+              sellerHash:String(row.sellerHash),
+              sellerIter:Number(row.sellerIter)||310000
+            };
+            if(row.adminHash&&row.adminSalt){
+              localAccess.adminSalt=String(row.adminSalt);
+              localAccess.adminHash=String(row.adminHash);
+              localAccess.adminIter=Number(row.adminIter)||310000;
+            }
+          }
+        }
+      }
+    }catch(e){}
+    if(localAccess){
+      const boot="<script>window.__LOCAL_ACCESS="+JSON.stringify(localAccess)+";<\/script>";
+      if(/window\.__LOCAL_ACCESS\s*=/.test(html)){
+        html=html.replace(/<script>window\.__LOCAL_ACCESS=[\s\S]*?;\s*<\/script>/i, boot);
+      }else if(html.includes("<head>")){
+        html=html.replace("<head>", "<head>"+boot, 1);
+      }else{
+        html=boot+html;
+      }
+    }else{
+      alert("Attenzione: nel file locale non c'è ancora la password shop. Aggiorna la password shop da Gestione password (online), poi scarica di nuovo.");
+    }
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([html],{type:"text/html"}));
     a.download="PreventivatoreStore.html";
