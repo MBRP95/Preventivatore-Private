@@ -2,10 +2,12 @@
 // Non riusare deviceproposer (ListinoSmartphones): utenti e regole restano separati.
 // L'apiKey web non è un secret.
 //
-// Account Authentication da creare (password solo in Firebase Auth):
+// Login su Pages: username "shop" o "admin" (+ @preventivatore.invalid se manca).
+// Account Authentication (password solo in Firebase Auth):
 //   shop@preventivatore.invalid
 //   admin@preventivatore.invalid
 // Firestore users/{uid}: { role: "seller"|"admin", active: true, app: "preventivatore" }
+// Authorized domains: includi mbrp95.github.io
 
 export const firebaseConfig = {
   apiKey: "AIzaSyCSNyacPCgffrYsvSewW5XkAJ-fTK6FVZM",
