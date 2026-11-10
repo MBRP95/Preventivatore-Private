@@ -9,7 +9,7 @@
 :root{font-family:Arial,Helvetica,sans-serif;color:#242424;background:#FFD000}
 *{box-sizing:border-box}
 body{margin:0;background:#FFD000}
-header{padding:28px 20px 10px;max-width:920px;margin:0 auto}
+header{padding:28px 20px 10px;max-width:920px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}.leave-btn{border:2px solid #111;background:#fff;color:#111;font:900 15px/1 Arial,Helvetica,sans-serif;border-radius:999px;padding:10px 14px;cursor:pointer;flex:0 0 auto}
 header .brand{font-weight:900;font-style:italic;letter-spacing:-.3px;font-size:15px}
 header h1{margin:4px 0 0;font-size:34px;line-height:1.05;letter-spacing:-.8px}
 header p{margin:8px 0 0;color:#403c27;font-size:16px}
@@ -317,8 +317,11 @@ body.fit-flyers .fs-btn.on{bottom:4px}
 </head>
 <body>
 <header>
+<div>
 <p class="brand">PROMO ENERGIA</p>
 <h1>Il tuo preventivo</h1>
+</div>
+<button type="button" id="leaveBtn" class="leave-btn" hidden>Esci</button>
 </header>
 <button type="button" id="fsBtn" class="fs-btn" aria-pressed="false">Schermo intero</button>
 <p id="fsNote" class="fs-note" hidden></p>
@@ -1545,7 +1548,7 @@ function syncFsBtn(){
   if(!btn)return;
   const on=!!fsElement();
   btn.classList.toggle("on",on);
-  btn.textContent=on?"Esci":"Schermo intero";
+  btn.textContent=on?"Schermo normale":"Schermo intero";
   btn.setAttribute("aria-pressed",on?"true":"false");
 }
 function enterFullscreen(){
@@ -1580,6 +1583,15 @@ function bindFullscreen(){
   document.addEventListener("fullscreenchange",onChange);
   document.addEventListener("webkitfullscreenchange",onChange);
   syncFsBtn();
+  const leave=$("leaveBtn");
+  const leaveParent=window.parent&&window.parent!==window?window.parent:null;
+  if(leave&&leaveParent&&typeof leaveParent.__logoutStaff==="function"){
+    leave.hidden=false;
+    leave.addEventListener("click",async()=>{
+      try{await leaveParent.__logoutStaff()}catch(e){}
+      if(typeof leaveParent.__backToChoice==="function") leaveParent.__backToChoice();
+    });
+  }
 }
 function romeOffsetMin(utcMs){
   const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Europe/Rome",hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"}).formatToParts(new Date(utcMs));

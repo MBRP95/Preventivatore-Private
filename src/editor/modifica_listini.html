@@ -55,7 +55,10 @@
 <body>
 <header>
   <h1>Modifica listini</h1>
-  <button type="button" id="editorBack" class="secondary" hidden>Indietro</button>
+  <div class="actions">
+    <button type="button" id="editorBack" class="secondary" hidden>Indietro</button>
+    <button type="button" id="editorLogout" class="secondary" hidden>Esci</button>
+  </div>
 </header>
 <main>
   <section class="panel">
@@ -1245,9 +1248,27 @@ $("download").addEventListener("click",async()=>{
 });
 
 const editorBack=$("editorBack");
-if(editorBack&&window.parent&&window.parent!==window&&typeof window.parent.__backToChoice==="function"){
+const editorLogout=$("editorLogout");
+const editorParent=window.parent&&window.parent!==window?window.parent:null;
+if(editorBack&&editorParent&&typeof editorParent.__backToChoice==="function"){
   editorBack.hidden=false;
-  editorBack.addEventListener("click",()=>window.parent.__backToChoice());
+  editorBack.addEventListener("click",()=>editorParent.__backToChoice());
+}
+if(editorLogout&&((editorParent&&typeof editorParent.__logoutStaff==="function")||location.protocol==="http:"||location.protocol==="https:")){
+  editorLogout.hidden=false;
+  editorLogout.addEventListener("click",async()=>{
+    if(editorParent&&typeof editorParent.__logoutStaff==="function"){
+      await editorParent.__logoutStaff();
+      if(typeof editorParent.__backToChoice==="function") editorParent.__backToChoice();
+      return;
+    }
+    try{
+      await fetch(apiUrl("/api/logout"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken||""}});
+    }catch(e){}
+    try{localStorage.removeItem("preventivatore-offline-grant")}catch(e){}
+    const status=$("status");
+    if(status) status.textContent="Sei uscito. Per modificare i listini serve un nuovo accesso Admin.";
+  });
 }
 async function shellWithCatalog(remoteText){
   let page="";

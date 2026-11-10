@@ -293,7 +293,6 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 <button type="button" id="pickSeller">Accedi come Shop Assistant →</button>
 </article>
 </div>
-<p style="text-align:center;margin:18px 0 0"><button type="button" id="pickLogout" style="width:auto;min-height:44px;background:#fff">Esci</button></p>
 </div>
 </div>
 <button type="button" id="modeBack">Indietro</button>
@@ -2436,7 +2435,7 @@ restoreFirefoxArchive();
 :root{font-family:Arial,Helvetica,sans-serif;color:#242424;background:#FFD000}
 *{box-sizing:border-box}
 body{margin:0;background:#FFD000}
-header{padding:28px 20px 10px;max-width:920px;margin:0 auto}
+header{padding:28px 20px 10px;max-width:920px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}.leave-btn{border:2px solid #111;background:#fff;color:#111;font:900 15px/1 Arial,Helvetica,sans-serif;border-radius:999px;padding:10px 14px;cursor:pointer;flex:0 0 auto}
 header .brand{font-weight:900;font-style:italic;letter-spacing:-.3px;font-size:15px}
 header h1{margin:4px 0 0;font-size:34px;line-height:1.05;letter-spacing:-.8px}
 header p{margin:8px 0 0;color:#403c27;font-size:16px}
@@ -2744,8 +2743,11 @@ body.fit-flyers .fs-btn.on{bottom:4px}
 </head>
 <body>
 <header>
+<div>
 <p class="brand">PROMO ENERGIA</p>
 <h1>Il tuo preventivo</h1>
+</div>
+<button type="button" id="leaveBtn" class="leave-btn" hidden>Esci</button>
 </header>
 <button type="button" id="fsBtn" class="fs-btn" aria-pressed="false">Schermo intero</button>
 <p id="fsNote" class="fs-note" hidden></p>
@@ -3972,7 +3974,7 @@ function syncFsBtn(){
   if(!btn)return;
   const on=!!fsElement();
   btn.classList.toggle("on",on);
-  btn.textContent=on?"Esci":"Schermo intero";
+  btn.textContent=on?"Schermo normale":"Schermo intero";
   btn.setAttribute("aria-pressed",on?"true":"false");
 }
 function enterFullscreen(){
@@ -4007,6 +4009,15 @@ function bindFullscreen(){
   document.addEventListener("fullscreenchange",onChange);
   document.addEventListener("webkitfullscreenchange",onChange);
   syncFsBtn();
+  const leave=$("leaveBtn");
+  const leaveParent=window.parent&&window.parent!==window?window.parent:null;
+  if(leave&&leaveParent&&typeof leaveParent.__logoutStaff==="function"){
+    leave.hidden=false;
+    leave.addEventListener("click",async()=>{
+      try{await leaveParent.__logoutStaff()}catch(e){}
+      if(typeof leaveParent.__backToChoice==="function") leaveParent.__backToChoice();
+    });
+  }
 }
 function romeOffsetMin(utcMs){
   const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Europe/Rome",hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"}).formatToParts(new Date(utcMs));
@@ -4229,7 +4240,10 @@ boot();
 <body>
 <header>
   <h1>Modifica listini</h1>
-  <button type="button" id="editorBack" class="secondary" hidden>Indietro</button>
+  <div class="actions">
+    <button type="button" id="editorBack" class="secondary" hidden>Indietro</button>
+    <button type="button" id="editorLogout" class="secondary" hidden>Esci</button>
+  </div>
 </header>
 <main>
   <section class="panel">
@@ -5419,9 +5433,27 @@ $("download").addEventListener("click",async()=>{
 });
 
 const editorBack=$("editorBack");
-if(editorBack&&window.parent&&window.parent!==window&&typeof window.parent.__backToChoice==="function"){
+const editorLogout=$("editorLogout");
+const editorParent=window.parent&&window.parent!==window?window.parent:null;
+if(editorBack&&editorParent&&typeof editorParent.__backToChoice==="function"){
   editorBack.hidden=false;
-  editorBack.addEventListener("click",()=>window.parent.__backToChoice());
+  editorBack.addEventListener("click",()=>editorParent.__backToChoice());
+}
+if(editorLogout&&((editorParent&&typeof editorParent.__logoutStaff==="function")||location.protocol==="http:"||location.protocol==="https:")){
+  editorLogout.hidden=false;
+  editorLogout.addEventListener("click",async()=>{
+    if(editorParent&&typeof editorParent.__logoutStaff==="function"){
+      await editorParent.__logoutStaff();
+      if(typeof editorParent.__backToChoice==="function") editorParent.__backToChoice();
+      return;
+    }
+    try{
+      await fetch(apiUrl("/api/logout"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken||""}});
+    }catch(e){}
+    try{localStorage.removeItem("preventivatore-offline-grant")}catch(e){}
+    const status=$("status");
+    if(status) status.textContent="Sei uscito. Per modificare i listini serve un nuovo accesso Admin.";
+  });
 }
 async function shellWithCatalog(remoteText){
   let page="";
