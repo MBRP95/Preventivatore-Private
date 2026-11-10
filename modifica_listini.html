@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Modifica listini preventivi</title>
+<script src="pages-access.js"></script>
 <style>
   :root{color-scheme:light}
   body{margin:0;background:#fff8d8;color:#111;font-family:Arial,Helvetica,sans-serif}
@@ -79,7 +80,7 @@
   </section>
   <section class="panel" id="accessBox">
     <h2>Password di accesso</h2>
-    <p class="hint">Lascia vuoto il ruolo che non vuoi cambiare. Ogni password nuova ha almeno 8 caratteri. Shop assistant e admin restano diverse. Il valore non finisce nel file pubblicato.</p>
+    <p class="hint">Lascia vuoto il ruolo che non vuoi cambiare. Ogni password nuova ha almeno 8 caratteri. Shop assistant e admin restano diverse. Su Cloudflare resta nei secret/KV. Su GitHub Pages aggiorna access.json (si scarica un file da mettere nel repository).</p>
     <label class="pwd">Nuova password shop assistant<input id="sellerPass" type="password" autocomplete="new-password"></label>
     <label class="pwd">Ripeti shop assistant<input id="sellerPass2" type="password" autocomplete="new-password"></label>
     <label class="pwd">Nuova password admin<input id="adminPass" type="password" autocomplete="new-password"></label>
@@ -1276,6 +1277,7 @@ if(editorLogout&&((editorParent&&typeof editorParent.__logoutStaff==="function")
       await fetch(apiUrl("/api/logout"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken||""}});
     }catch(e){}
     try{localStorage.removeItem("preventivatore-offline-grant")}catch(e){}
+    if(window.PagesAccess) PagesAccess.clearGrant();
     const status=$("status");
     if(status) status.textContent="Sei uscito. Per modificare i listini serve un nuovo accesso Admin.";
   });
@@ -1293,12 +1295,34 @@ if(savePasswords){
     if((seller&&seller.length<8)||(admin&&admin.length<8)){ say("Ogni nuova password deve avere almeno 8 caratteri."); return; }
     savePasswords.disabled=true;
     try{
-      const res=await fetch(apiUrl("/api/admin/passwords"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken||""},body:JSON.stringify({seller,admin})});
-      const data=await res.json().catch(()=>({}));
-      if(!res.ok) throw Error(data.error||"Aggiornamento non riuscito.");
-      $("sellerPass").value=""; $("sellerPass2").value=""; $("adminPass").value=""; $("adminPass2").value="";
-      if(data.offline&&editorParent&&typeof editorParent.__saveOffline==="function") editorParent.__saveOffline(data.offline);
-      say("Password aggiornata. Chi era già entrato deve accedere di nuovo. Un dispositivo offline tiene il permesso precedente finché non si ricollega, o fino alla scadenza di 30 giorni.");
+      let usedPages=false;
+      try{
+        const res=await fetch(apiUrl("/api/admin/passwords"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken||""},body:JSON.stringify({seller,admin})});
+        const raw=await res.text();
+        let data={};
+        try{data=JSON.parse(raw)}catch(e){data={}}
+        const apiMiss=window.PagesAccess?PagesAccess.looksLikeApiMiss(res, Object.keys(data).length?data:null):false;
+        if(apiMiss || (!csrfToken && !res.ok)){
+          usedPages=true;
+        }else{
+          if(!res.ok) throw Error(data.error||"Aggiornamento non riuscito.");
+          $("sellerPass").value=""; $("sellerPass2").value=""; $("adminPass").value=""; $("adminPass2").value="";
+          if(data.offline&&editorParent&&typeof editorParent.__saveOffline==="function") editorParent.__saveOffline(data.offline);
+          say("Password aggiornata. Chi era già entrato deve accedere di nuovo. Un dispositivo offline tiene il permesso precedente finché non si ricollega, o fino alla scadenza di 30 giorni.");
+          return;
+        }
+      }catch(e){
+        if(csrfToken) throw e;
+        usedPages=true;
+      }
+      if(usedPages){
+        if(!(window.PagesAccess&&PagesAccess.updatePasswords)) throw Error("Modulo di accesso Pages assente.");
+        const pages=await PagesAccess.updatePasswords(seller, admin);
+        if(pages.error) throw Error(pages.error);
+        $("sellerPass").value=""; $("sellerPass2").value=""; $("adminPass").value=""; $("adminPass2").value="";
+        PagesAccess.downloadAccess(pages.access);
+        say("Password aggiornata per GitHub Pages. Ho scaricato access.json: sostituiscilo nel repository e attendi la pubblicazione Pages. Su questo browser vale subito.");
+      }
     }catch(e){
       say(e&&e.message?e.message:String(e));
     }finally{
@@ -1328,13 +1352,52 @@ if(editorBase){
   (async()=>{
     const status=$("status");
     status.textContent="Verifica della sessione editor in corso…";
+    async function bootPagesAdmin(){
+      if(!(window.PagesAccess&&PagesAccess.readGrant)) return false;
+      const grant=PagesAccess.readGrant();
+      if(!(grant.ok&&grant.role==="admin")) return false;
+      status.textContent="Accesso Pages Admin. Caricamento dei listini dalla pagina…";
+      let page="";
+      try{
+        if(window.parent&&window.parent!==window){
+          const pageUrl=String(window.parent.location.href||"").split("#")[0];
+          if(pageUrl.indexOf("http")===0){
+            const res=await fetch(pageUrl,{cache:"no-store"});
+            if(res.ok) page=await res.text();
+          }
+        }
+      }catch(e){}
+      if(!page){
+        try{
+          const res=await fetch(new URL("index.html", location.href).href,{cache:"no-store"});
+          if(res.ok) page=await res.text();
+        }catch(e){}
+      }
+      if(kindOf(page)!=="unito") throw Error("Su GitHub Pages non trovo l'index con i listini. Carica Gestionale e Preventivo cliente a mano.");
+      loadCombined(page,"index.html");
+      publishMode=false;
+      csrfToken="";
+      $("fileGestionale").closest("label").classList.add("hidden");
+      $("fileCliente").closest("label").classList.add("hidden");
+      $("download").textContent="Scarica HTML aggiornato";
+      status.textContent="Listino caricato da GitHub Pages. Per pubblicare scarica l'HTML e aggiorna il repository (Cloudflare non è raggiungibile da qui)."+scheduleLoadedNote();
+      return true;
+    }
     try{
       const res=await fetch(apiUrl("/api/session"),{credentials:"same-origin",cache:"no-store"});
+      const raw=await res.text();
+      let session={};
+      try{session=JSON.parse(raw)}catch(e){session={}}
+      const apiMiss=window.PagesAccess?PagesAccess.looksLikeApiMiss(res, Object.keys(session).length?session:null):false;
+      if(apiMiss){
+        if(await bootPagesAdmin()) return;
+        throw Error("Nessuna sessione Admin Pages. Torna alla home e accedi come Admin.");
+      }
       if(res.status===401){
+        if(await bootPagesAdmin()) return;
         status.textContent="Sessione non attiva o scaduta. Torna alla pagina iniziale ed effettua di nuovo l'accesso come Admin.";
         return;
       }
-      const session=await res.json().catch(()=>({}));
       if(!res.ok) throw Error(session.error||"Impossibile verificare la sessione editor (HTTP "+res.status+").");
       if(!session||session.role!=="admin"){
         status.textContent="Ruolo non autorizzato: questa pagina richiede una sessione Admin. Esci e accedi con le credenziali corrette.";
@@ -1357,6 +1420,11 @@ if(editorBase){
       $("download").textContent="Pubblica listini";
       status.textContent="Listino caricato correttamente. Pubblica per aggiornarlo."+scheduleLoadedNote();
     }catch(err){
+      try{
+        if(await bootPagesAdmin()) return;
+      }catch(pagesErr){
+        err=pagesErr;
+      }
       publishMode=false;
       csrfToken="";
       loaded.gestionale=null;
