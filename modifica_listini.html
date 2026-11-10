@@ -79,7 +79,7 @@
   </section>
   <section class="panel" id="accessBox">
     <h2>Password di accesso</h2>
-    <p class="hint">Lascia vuoto il ruolo che non vuoi cambiare. Ogni password nuova ha almeno 8 caratteri. Shop assistant e admin restano diverse. Il valore non finisce nel file pubblicato.</p>
+    <p class="hint">Su Cloudflare puoi cambiare shop e admin. Su GitHub Pages (Firebase) cambi solo la password del ruolo con cui sei entrato; l’altra si cambia in Firebase Authentication → Users. Minimo 8 caratteri.</p>
     <label class="pwd">Nuova password shop assistant<input id="sellerPass" type="password" autocomplete="new-password"></label>
     <label class="pwd">Ripeti shop assistant<input id="sellerPass2" type="password" autocomplete="new-password"></label>
     <label class="pwd">Nuova password admin<input id="adminPass" type="password" autocomplete="new-password"></label>
@@ -1293,8 +1293,34 @@ if(savePasswords){
     if((seller&&seller.length<8)||(admin&&admin.length<8)){ say("Ogni nuova password deve avere almeno 8 caratteri."); return; }
     savePasswords.disabled=true;
     try{
+      const firebaseMode=(editorParent&&editorParent.__staffSource==="firebase")||(!csrfToken&&location.hostname.indexOf("github.io")!==-1);
+      if(firebaseMode){
+        const api=editorParent&&editorParent.firebaseApi;
+        if(!(api&&api.auth&&api.auth.currentUser&&api.updatePassword)){
+          throw Error("Sessione Firebase assente. Esci e accedi di nuovo come Admin.");
+        }
+        const role=editorParent.__staffRole||"";
+        if(seller&&admin) throw Error("Su GitHub Pages cambia una sola password per volta (quella del ruolo con cui sei entrato).");
+        if(role==="admin"&&seller&&!admin){
+          throw Error("Da Admin non puoi cambiare la password shop qui. In Firebase: Authentication → Users → shop@preventivatore.invalid → Reset password (o modifica password).");
+        }
+        if(role==="seller"&&admin&&!seller){
+          throw Error("Da Shop non puoi cambiare la password admin qui. Entra come admin oppure usala in Firebase Authentication.");
+        }
+        const next=(role==="admin")?admin:seller;
+        if(!next) throw Error("Sei entrato come "+role+". Compila la password di quel ruolo.");
+        await api.updatePassword(api.auth.currentUser, next);
+        $("sellerPass").value=""; $("sellerPass2").value=""; $("adminPass").value=""; $("adminPass2").value="";
+        say("Password Firebase aggiornata per questo account. Al prossimo accesso usa la nuova password.");
+        return;
+      }
       const res=await fetch(apiUrl("/api/admin/passwords"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken||""},body:JSON.stringify({seller,admin})});
-      const data=await res.json().catch(()=>({}));
+      const raw=await res.text();
+      let data={};
+      try{data=JSON.parse(raw)}catch(e){data={}}
+      if(res.status===404||res.status===405||!Object.keys(data).length){
+        throw Error("Server Cloudflare non disponibile. Su GitHub Pages usa il cambio password Firebase (solo il tuo account) oppure Authentication in console.");
+      }
       if(!res.ok) throw Error(data.error||"Aggiornamento non riuscito.");
       $("sellerPass").value=""; $("sellerPass2").value=""; $("adminPass").value=""; $("adminPass2").value="";
       if(data.offline&&editorParent&&typeof editorParent.__saveOffline==="function") editorParent.__saveOffline(data.offline);
