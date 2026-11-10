@@ -1,7 +1,6 @@
 // Config pubblica del progetto Firebase dedicato al preventivatore.
 // Non riusare deviceproposer (ListinoSmartphones): utenti e regole restano separati.
-// Dopo aver creato il progetto in console.firebase.google.com, da Impostazioni progetto
-// → Le tue app → app Web, copia i valori qui. L'apiKey web non è un secret.
+// L'apiKey web non è un secret.
 //
 // Account Authentication da creare (password solo in Firebase Auth):
 //   shop@preventivatore.invalid
@@ -9,13 +8,12 @@
 // Firestore users/{uid}: { role: "seller"|"admin", active: true, app: "preventivatore" }
 
 export const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
-  measurementId: ""
+  apiKey: "AIzaSyCSNyacPCgffrYsvSewW5XkAJ-fTK6FVZM",
+  authDomain: "preventivatore-43c03.firebaseapp.com",
+  projectId: "preventivatore-43c03",
+  storageBucket: "preventivatore-43c03.firebasestorage.app",
+  messagingSenderId: "731758475980",
+  appId: "1:731758475980:web:ec347c4cce7710d4d0a069"
 };
 
 export const FIREBASE_STAFF_EMAILS = [
