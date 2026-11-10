@@ -299,7 +299,8 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 <div id="gate">
 <form id="gateForm">
 <h1>Shop Assistant</h1>
-<p id="gateLead">Inserisci la password. Su GitHub Pages la verifica il progetto Firebase del preventivatore; con Cloudflare resta il Worker. Le password non stanno nel file del sito.</p>
+<p id="gateLead">Su GitHub Pages: username Firebase (es. shop o admin) e password. Con Cloudflare basta la password del Worker. Le password non stanno nel file del sito.</p>
+<label>Username<input id="gateUsername" type="text" autocomplete="username" placeholder="shop oppure admin"></label>
 <label>Password<input id="gatePassword" type="password" autocomplete="current-password"></label>
 <button type="submit">Entra</button>
 <p id="gateError" class="status hidden"></p>
@@ -477,40 +478,44 @@ if (!firebaseConfigured()) {
       return found;
     }catch(e){return null}
   }
-  async function loginFirebase(password){
+  function resolveStaffEmail(username){
+    const raw=String(username||"").trim().toLowerCase();
+    if(!raw) return "";
+    if(raw.includes("@")) return raw;
+    return raw+"@preventivatore.invalid";
+  }
+  async function loginFirebase(username, password){
     if(window.firebaseConfigured&&!window.firebaseConfigured()){
       return {error:"unconfigured"};
     }
     if(window.firebaseConfigError&&!window.firebaseApi){
       return {error:"unconfigured"};
     }
+    const email=resolveStaffEmail(username);
+    if(!email) return {error:"need-user"};
     const api=await waitFirebase(8000);
     if(!api) return {error:"unconfigured"};
-    if(!staffEmails().length) return {error:"unconfigured"};
-    let last="invalid";
-    for(const email of staffEmails()){
-      try{
-        const cred=await api.signInWithEmailAndPassword(api.auth, email, password);
-        const found=await firebaseRoleFromUser(api, cred.user);
-        if(found.error==="missing-profile"){ await api.signOut(api.auth); last="missing-profile"; continue; }
-        if(found.error==="inactive"){ await api.signOut(api.auth); last="inactive"; continue; }
-        if(found.error==="wrong-app"){ await api.signOut(api.auth); last="wrong-app"; continue; }
-        if(found.error==="bad-role"){ await api.signOut(api.auth); last="bad-role"; continue; }
-        window.__staffRole=found.role;
-        window.__staffSource="firebase";
+    try{
+      const cred=await api.signInWithEmailAndPassword(api.auth, email, password);
+      const found=await firebaseRoleFromUser(api, cred.user);
+      if(found.error){
+        try{await api.signOut(api.auth)}catch(e){}
         return found;
-      }catch(e){
-        const code=String(e&&e.code||"");
-        if(code==="auth/invalid-credential"||code==="auth/wrong-password"||code==="auth/user-not-found"||code==="auth/invalid-email"){
-          last="invalid";
-          continue;
-        }
-        if(code==="auth/too-many-requests") return {error:"rate"};
-        if(code==="auth/network-request-failed") return {error:"network"};
-        throw e;
       }
+      window.__staffRole=found.role;
+      window.__staffSource="firebase";
+      return found;
+    }catch(e){
+      const code=String(e&&e.code||"");
+      if(code==="auth/invalid-credential"||code==="auth/wrong-password"||code==="auth/user-not-found"||code==="auth/invalid-email"){
+        return {error:"invalid", code:code, email:email};
+      }
+      if(code==="auth/unauthorized-domain") return {error:"domain"};
+      if(code==="auth/operation-not-allowed") return {error:"provider"};
+      if(code==="auth/too-many-requests") return {error:"rate"};
+      if(code==="auth/network-request-failed") return {error:"network"};
+      return {error:"firebase", detail:(e&&e.message?e.message:String(e)), code:code};
     }
-    return {error:last};
   }
   async function enterStaff(){
     const err=document.getElementById("gateError");
@@ -544,20 +549,26 @@ if (!firebaseConfigured()) {
   }
   document.getElementById("gateForm").addEventListener("submit",async function(ev){
     ev.preventDefault();
+    const userInput=document.getElementById("gateUsername");
     const input=document.getElementById("gatePassword");
+    const username=userInput?userInput.value.trim():"";
     const value=input.value;
     input.value="";
     async function viaFirebase(){
       try{
-        const pages=await loginFirebase(value);
+        const pages=await loginFirebase(username, value);
         if(pages.error==="unconfigured"){showError(window.firebaseConfigError||"Progetto Firebase del preventivatore non configurato (firebase-config.js).");return}
-        if(pages.error==="invalid"){showError("Password non corretta.");return}
-        if(pages.error==="missing-profile"){showError("Account Firebase senza profilo. Crea il documento users in Firestore.");return}
+        if(pages.error==="need-user"){showError("Su GitHub Pages scrivi lo username Firebase (shop oppure admin).");return}
+        if(pages.error==="invalid"){showError("Username o password non corretti. In Authentication l'email deve essere "+(pages.email||"shop@preventivatore.invalid")+".");return}
+        if(pages.error==="domain"){showError("Aggiungi mbrp95.github.io in Authentication → Settings → Authorized domains.");return}
+        if(pages.error==="provider"){showError("In Authentication abilita il provider Email/password.");return}
+        if(pages.error==="missing-profile"){showError("Account Firebase senza profilo. Crea il documento users/{uid} in Firestore.");return}
         if(pages.error==="inactive"){showError("Account disattivato.");return}
         if(pages.error==="wrong-app"){showError("Questo account non è abilitato al preventivatore.");return}
         if(pages.error==="bad-role"){showError("Ruolo Firebase non valido per il preventivatore.");return}
         if(pages.error==="rate"){showError("Troppi tentativi su Firebase. Riprova tra qualche minuto.");return}
         if(pages.error==="network"){showError("Firebase non è raggiungibile dalla rete corrente.");return}
+        if(pages.error==="firebase"){showError("Firebase: "+(pages.detail||pages.code||"errore"));return}
         if(pages.role){await openRole(pages.role);return}
         showError("Accesso Firebase non riuscito.");
       }catch(e){
