@@ -1162,9 +1162,27 @@ function rememberLoose(items, next, from){
   dirty=false;
   applyScheduleField();
 }
+function editorPageUrl(){
+  try{
+    const parent=window.parent;
+    if(parent&&parent!==window){
+      const url=new URL(parent.location.href);
+      if(/^https?:$/.test(url.protocol)) return url;
+    }
+  }catch(e){}
+  try{
+    const url=new URL(location.href);
+    if(/^https?:$/.test(url.protocol)) return url;
+  }catch(e){}
+  return null;
+}
+function apiUrl(path){
+  const base=editorPageUrl();
+  return base?new URL(path, base):path;
+}
 async function publishHtml(fileHtml, message){
   if(!csrfToken) throw Error("Sessione editor assente. Esci e accedi di nuovo online.");
-  const res=await fetch("/api/admin/publish",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken},body:JSON.stringify({html:fileHtml,message:message||"Aggiorna i listini."})});
+  const res=await fetch(apiUrl("/api/admin/publish"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken},body:JSON.stringify({html:fileHtml,message:message||"Aggiorna i listini."})});
   const data=await res.json().catch(()=>({}));
   if(res.status===401) throw Error("Accesso editor scaduto. Esci e accedi di nuovo online.");
   if(res.status===403) throw Error(data.error||"La pubblicazione è riservata all'editor.");
@@ -1242,27 +1260,53 @@ async function shellWithCatalog(remoteText){
   }
   return remoteText;
 }
-if(location.protocol==="http:"||location.protocol==="https:"){
+const editorBase=editorPageUrl();
+if(editorBase){
   (async()=>{
+    const status=$("status");
+    status.textContent="Verifica della sessione editor in corso…";
     try{
-      const res=await fetch("/api/session",{credentials:"same-origin",cache:"no-store"});
-      if(!res.ok) return;
-      const session=await res.json();
-      if(!session||session.role!=="admin") return;
+      const res=await fetch(apiUrl("/api/session"),{credentials:"same-origin",cache:"no-store"});
+      if(res.status===401){
+        status.textContent="Sessione non attiva o scaduta. Torna alla pagina iniziale ed effettua di nuovo l'accesso come Admin.";
+        return;
+      }
+      const session=await res.json().catch(()=>({}));
+      if(!res.ok) throw Error(session.error||"Impossibile verificare la sessione editor (HTTP "+res.status+").");
+      if(!session||session.role!=="admin"){
+        status.textContent="Ruolo non autorizzato: questa pagina richiede una sessione Admin. Esci e accedi con le credenziali corrette.";
+        return;
+      }
       csrfToken=session.csrf||"";
-      const fileRes=await fetch("/api/admin/files",{credentials:"same-origin",cache:"no-store"});
+      if(!csrfToken) throw Error("Sessione editor valida ma token di sicurezza CSRF mancante. Esci e accedi di nuovo.");
+      status.textContent="Sessione verificata. Caricamento dei listini…";
+      const fileRes=await fetch(apiUrl("/api/admin/files"),{credentials:"same-origin",cache:"no-store"});
       const data=await fileRes.json().catch(()=>({}));
-      if(!fileRes.ok) throw Error(data.error||"File dei listini non letto.");
+      if(fileRes.status===401) throw Error("Sessione scaduta durante il caricamento. Accedi di nuovo come Admin.");
+      if(fileRes.status===403) throw Error(data.error||"Il server non riconosce i permessi Admin per questa sessione.");
+      if(!fileRes.ok) throw Error(data.error||"Impossibile leggere i listini (HTTP "+fileRes.status+").");
+      const html=await shellWithCatalog(data.html||"");
+      if(kindOf(html)!=="unito") throw Error("Il file dei listini ricevuto dal server non è l'index del sito.");
+      loadCombined(html,"index.html");
       publishMode=true;
       $("fileGestionale").closest("label").classList.add("hidden");
       $("fileCliente").closest("label").classList.add("hidden");
       $("download").textContent="Pubblica listini";
-      const html=await shellWithCatalog(data.html||"");
-      if(kindOf(html)!=="unito") throw Error("Il file dei listini non è l'index del sito.");
-      loadCombined(html,"index.html");
-      $("status").textContent="Listino letto dal sito. Pubblica per aggiornarlo."+scheduleLoadedNote();
+      status.textContent="Listino caricato correttamente. Pubblica per aggiornarlo."+scheduleLoadedNote();
     }catch(err){
-      $("status").textContent=err&&err.message?err.message:String(err);
+      publishMode=false;
+      csrfToken="";
+      loaded.gestionale=null;
+      loaded.cliente=null;
+      catalog=null;
+      baselineCatalog=null;
+      dirty=false;
+      $("fileGestionale").closest("label").classList.remove("hidden");
+      $("fileCliente").closest("label").classList.remove("hidden");
+      $("download").textContent="Scarica HTML aggiornato";
+      $("download").disabled=true;
+      $("reset").disabled=true;
+      status.textContent="Caricamento online non riuscito: "+(err&&err.message?err.message:String(err))+" Puoi continuare caricando manualmente Gestionale e Preventivo cliente.";
     }
   })();
 }

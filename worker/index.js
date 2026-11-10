@@ -358,11 +358,16 @@ function patchEditorFallback(html) {
   patched = patched.replaceAll('fetch("/api/session",{credentials:"same-origin",cache:"no-store"})', 'fetch(new URL("/api/session",window.parent&&window.parent!==window?window.parent.location.href:location.href),{credentials:"same-origin",cache:"no-store"})');
   patched = patched.replaceAll('fetch("/api/admin/files",{credentials:"same-origin",cache:"no-store"})', 'fetch(new URL("/api/admin/files",window.parent&&window.parent!==window?window.parent.location.href:location.href),{credentials:"same-origin",cache:"no-store"})');
   // Il ruolo privilegiato del backend è admin: allinea il bootstrap dell'editor incorporato.
-  patched = patched.replaceAll('session.role!=="editor"', 'session.role!=="admin"');
+  // Non riscrivere una pagina che accetta già admin: la sostituzione sarebbe parziale.
+  function replaceRole(from, to){
+    if(patched.includes(to)) return;
+    patched = patched.replaceAll(from, to);
+  }
+  replaceRole('session.role!=="editor"', 'session.role!=="admin"');
   // Allinea il gate principale: admin apre l'editor, seller apre il gestionale.
-  patched = patched.replaceAll('payload.role!=="seller"&&payload.role!=="editor"', 'payload.role!=="seller"&&payload.role!=="admin"');
-  patched = patched.replaceAll('if(role==="editor")', 'if(role==="admin")');
-  patched = patched.replaceAll('session.role==="seller"||session.role==="editor"', 'session.role==="seller"||session.role==="admin"');
+  replaceRole('payload.role!=="seller"&&payload.role!=="editor"', 'payload.role!=="seller"&&payload.role!=="admin"');
+  replaceRole('if(role==="editor")', 'if(role==="admin")');
+  replaceRole('session.role==="seller"||session.role==="editor"', 'session.role==="seller"||session.role==="admin"');
   return patched;
 }
 

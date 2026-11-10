@@ -331,7 +331,7 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     if(parts.length!==2||!parts[0]||!parts[1]) return {ok:false, reason:"malformed"};
     let payload;
     try{payload=JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[0])))}catch(e){return {ok:false, reason:"malformed"}}
-    if(!payload||payload.v!==1||(payload.role!=="seller"&&payload.role!=="editor")||payload.sub!==payload.role) return {ok:false, reason:"malformed"};
+    if(!payload||payload.v!==1||(payload.role!=="seller"&&payload.role!=="admin"&&payload.role!=="editor")||payload.sub!==payload.role) return {ok:false, reason:"malformed"};
     if(!Number.isFinite(payload.iat)||!Number.isFinite(payload.exp)||!payload.jti) return {ok:false, reason:"malformed"};
     if((payload.exp-payload.iat)*1000>MAX_MS+5000) return {ok:false, reason:"lifetime"};
     let key;
@@ -382,7 +382,7 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     }catch(e){return null}
   }
   async function openRole(role){
-    if(role==="editor"){
+    if(role==="admin"||role==="editor"){
       document.body.classList.remove("ask-pass");
       if(window.__openEditor) await window.__openEditor();
       return;
@@ -393,7 +393,7 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     const err=document.getElementById("gateError");
     if(err){err.textContent="";err.classList.add("hidden")}
     const session=await probe();
-    if(session&&(session.role==="seller"||session.role==="editor")){await openRole(session.role);return}
+    if(session&&(session.role==="seller"||session.role==="admin"||session.role==="editor")){await openRole(session.role);return}
     const grant=await readGrant();
     if(grant.ok){await openRole(grant.role);return}
     if(grant.reason==="expired") showError("L'autorizzazione offline è scaduta. Serve un accesso online.");
@@ -872,6 +872,53 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     }
   }
 }
+</script>
+<script>
+(function(){
+  var KEY="preventivatore-published-listino";
+  function read(){
+    try{return JSON.parse(sessionStorage.getItem(KEY)||"null")}catch(e){return null}
+  }
+  function setScript(id,jsonText){
+    var el=document.getElementById(id);
+    if(!jsonText){
+      if(el&&el.parentNode&&id!=="promo-catalog") el.parentNode.removeChild(el);
+      return;
+    }
+    var data=JSON.parse(jsonText);
+    if(id==="promo-catalog"&&(!data||!data.flat||!data.commodity)) throw Error("catalogo");
+    if(!el){
+      el=document.createElement("script");
+      el.type="application/json";
+      el.id=id;
+      var cur=document.getElementById("promo-catalog");
+      if(cur&&cur.parentNode) cur.parentNode.insertBefore(el, cur.nextSibling);
+      else document.head.appendChild(el);
+    }
+    el.textContent=jsonText;
+  }
+  function patchCliente(jsonText){
+    var el=document.getElementById("cliente-app");
+    if(!el||!jsonText) return;
+    var text=el.textContent;
+    var re=/<script type="application\/json" id="promo-catalog">[\s\S]*?<\\?\/script>/i;
+    if(!re.test(text)) return;
+    el.textContent=text.replace(re,'<script type="application/json" id="promo-catalog">\n'+jsonText+'\n<\\/script>');
+  }
+  function apply(){
+    var saved=read();
+    if(!saved||typeof saved.catalog!=="string"||!saved.catalog) return;
+    try{setScript("promo-catalog", saved.catalog)}catch(e){return}
+    try{
+      if(saved.next) setScript("promo-catalog-next", saved.next);
+      else setScript("promo-catalog-next", "");
+    }catch(e){}
+    try{patchCliente(saved.catalog)}catch(e){}
+    try{sessionStorage.removeItem(KEY+"-try")}catch(e){}
+  }
+  window.__applyPublishedListino=apply;
+  apply();
+})();
 </script>
 <script>
 (function(){
@@ -2321,24 +2368,19 @@ restoreFirefoxArchive();
   function catalogNorm(text){
     try{return JSON.stringify(JSON.parse(text))}catch(e){return String(text||"").trim()}
   }
-  function catalogFromHtml(html){
-    const m=String(html||"").match(/<script type="application\/json" id="promo-catalog">([\s\S]*?)<\/script>/);
-    return catalogNorm(m?m[1]:"");
+  function blockInner(html,id){
+    const re=new RegExp('<script type="application\\/json" id="'+id+'">([\\s\\S]*?)<\\/script>','i');
+    const m=String(html||"").match(re);
+    return m?m[1].trim():"";
   }
   function revOf(html){
     const m=String(html||"").match(/name="page-rev" content="([^"]*)"/);
     return m?m[1]:"";
   }
-  const localCat=catalogNorm((document.getElementById("promo-catalog")||{textContent:""}).textContent);
   const localRev=(document.querySelector('meta[name="page-rev"]')||{}).content||"";
   const ctrl=new AbortController();
   setTimeout(()=>ctrl.abort(),8000);
-  function apply(html,mark){
-    if(!html||!html.includes('id="promo-catalog"')||!html.includes('name="page-rev"'))return;
-    const remoteRev=revOf(html);
-    if(remoteRev&&localRev&&remoteRev<=localRev)return;
-    if(!remoteRev&&catalogFromHtml(html)===localCat)return;
-    if(started&&!document.body.classList.contains("locked"))return;
+  function showShell(html,mark){
     if(sessionStorage.getItem("preventivatore-update-sha")===mark)return;
     sessionStorage.setItem("preventivatore-update-sha",mark);
     const frame=document.createElement("iframe");
@@ -2349,6 +2391,30 @@ restoreFirefoxArchive();
     doc.open();
     doc.write(html);
     doc.close();
+  }
+  function apply(html,mark){
+    if(!html||!html.includes('id="promo-catalog"')||!html.includes('name="page-rev"'))return;
+    if(started&&!document.body.classList.contains("locked"))return;
+    const remoteRev=revOf(html);
+    if(remoteRev&&localRev&&remoteRev>localRev){
+      showShell(html,mark);
+      return;
+    }
+    const remoteRaw=blockInner(html,"promo-catalog");
+    const localCat=catalogNorm((document.getElementById("promo-catalog")||{textContent:""}).textContent);
+    if(!remoteRaw||catalogNorm(remoteRaw)===localCat)return;
+    let next="";
+    try{
+      next=blockInner(html,"promo-catalog-next");
+      if(next) JSON.parse(next);
+    }catch(e){next=""}
+    let payload="";
+    try{payload=JSON.stringify({catalog:remoteRaw,next:next})}catch(e){return}
+    const key="preventivatore-published-listino";
+    if(sessionStorage.getItem(key)===payload&&sessionStorage.getItem(key+"-try")==="1")return;
+    sessionStorage.setItem(key,payload);
+    sessionStorage.setItem(key+"-try","1");
+    location.reload();
   }
   if(location.protocol==="file:")return;
   fetch("/api/public-index",{cache:"no-store",signal:ctrl.signal}).then(function(r){
@@ -4002,6 +4068,7 @@ boot();
 </script>
 <script>
 (function(){
+  if(window.__applyPublishedListino) window.__applyPublishedListino();
   const key="preventivatore-modalita";
   function clienteHtml(){
     const el=document.getElementById("cliente-app");
@@ -5269,9 +5336,27 @@ function rememberLoose(items, next, from){
   dirty=false;
   applyScheduleField();
 }
+function editorPageUrl(){
+  try{
+    const parent=window.parent;
+    if(parent&&parent!==window){
+      const url=new URL(parent.location.href);
+      if(/^https?:$/.test(url.protocol)) return url;
+    }
+  }catch(e){}
+  try{
+    const url=new URL(location.href);
+    if(/^https?:$/.test(url.protocol)) return url;
+  }catch(e){}
+  return null;
+}
+function apiUrl(path){
+  const base=editorPageUrl();
+  return base?new URL(path, base):path;
+}
 async function publishHtml(fileHtml, message){
   if(!csrfToken) throw Error("Sessione editor assente. Esci e accedi di nuovo online.");
-  const res=await fetch("/api/admin/publish",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken},body:JSON.stringify({html:fileHtml,message:message||"Aggiorna i listini."})});
+  const res=await fetch(apiUrl("/api/admin/publish"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken},body:JSON.stringify({html:fileHtml,message:message||"Aggiorna i listini."})});
   const data=await res.json().catch(()=>({}));
   if(res.status===401) throw Error("Accesso editor scaduto. Esci e accedi di nuovo online.");
   if(res.status===403) throw Error(data.error||"La pubblicazione è riservata all'editor.");
@@ -5349,27 +5434,53 @@ async function shellWithCatalog(remoteText){
   }
   return remoteText;
 }
-if(location.protocol==="http:"||location.protocol==="https:"){
+const editorBase=editorPageUrl();
+if(editorBase){
   (async()=>{
+    const status=$("status");
+    status.textContent="Verifica della sessione editor in corso…";
     try{
-      const res=await fetch("/api/session",{credentials:"same-origin",cache:"no-store"});
-      if(!res.ok) return;
-      const session=await res.json();
-      if(!session||session.role!=="editor") return;
+      const res=await fetch(apiUrl("/api/session"),{credentials:"same-origin",cache:"no-store"});
+      if(res.status===401){
+        status.textContent="Sessione non attiva o scaduta. Torna alla pagina iniziale ed effettua di nuovo l'accesso come Admin.";
+        return;
+      }
+      const session=await res.json().catch(()=>({}));
+      if(!res.ok) throw Error(session.error||"Impossibile verificare la sessione editor (HTTP "+res.status+").");
+      if(!session||session.role!=="admin"){
+        status.textContent="Ruolo non autorizzato: questa pagina richiede una sessione Admin. Esci e accedi con le credenziali corrette.";
+        return;
+      }
       csrfToken=session.csrf||"";
-      const fileRes=await fetch("/api/admin/files",{credentials:"same-origin",cache:"no-store"});
+      if(!csrfToken) throw Error("Sessione editor valida ma token di sicurezza CSRF mancante. Esci e accedi di nuovo.");
+      status.textContent="Sessione verificata. Caricamento dei listini…";
+      const fileRes=await fetch(apiUrl("/api/admin/files"),{credentials:"same-origin",cache:"no-store"});
       const data=await fileRes.json().catch(()=>({}));
-      if(!fileRes.ok) throw Error(data.error||"File dei listini non letto.");
+      if(fileRes.status===401) throw Error("Sessione scaduta durante il caricamento. Accedi di nuovo come Admin.");
+      if(fileRes.status===403) throw Error(data.error||"Il server non riconosce i permessi Admin per questa sessione.");
+      if(!fileRes.ok) throw Error(data.error||"Impossibile leggere i listini (HTTP "+fileRes.status+").");
+      const html=await shellWithCatalog(data.html||"");
+      if(kindOf(html)!=="unito") throw Error("Il file dei listini ricevuto dal server non è l'index del sito.");
+      loadCombined(html,"index.html");
       publishMode=true;
       $("fileGestionale").closest("label").classList.add("hidden");
       $("fileCliente").closest("label").classList.add("hidden");
       $("download").textContent="Pubblica listini";
-      const html=await shellWithCatalog(data.html||"");
-      if(kindOf(html)!=="unito") throw Error("Il file dei listini non è l'index del sito.");
-      loadCombined(html,"index.html");
-      $("status").textContent="Listino letto dal sito. Pubblica per aggiornarlo."+scheduleLoadedNote();
+      status.textContent="Listino caricato correttamente. Pubblica per aggiornarlo."+scheduleLoadedNote();
     }catch(err){
-      $("status").textContent=err&&err.message?err.message:String(err);
+      publishMode=false;
+      csrfToken="";
+      loaded.gestionale=null;
+      loaded.cliente=null;
+      catalog=null;
+      baselineCatalog=null;
+      dirty=false;
+      $("fileGestionale").closest("label").classList.remove("hidden");
+      $("fileCliente").closest("label").classList.remove("hidden");
+      $("download").textContent="Scarica HTML aggiornato";
+      $("download").disabled=true;
+      $("reset").disabled=true;
+      status.textContent="Caricamento online non riuscito: "+(err&&err.message?err.message:String(err))+" Puoi continuare caricando manualmente Gestionale e Preventivo cliente.";
     }
   })();
 }

@@ -33,7 +33,7 @@ function listiniHtml(extra = "") {
   return "<!doctype html><html><head><meta name=\"page-rev\" content=\"2026-11-08T23:10:00.000Z\"></head><body>" +
     "<script type=\"application/json\" id=\"promo-catalog\">{\"flat\":{},\"commodity\":{}}</script>" +
     "<script type=\"text/plain\" id=\"cliente-app\">cliente</script>" +
-    "<script type=\"text/plain\" id=\"admin-app\">admin</script>" +
+    "<script type=\"text/plain\" id=\"editor-app\">editor</script>" +
     extra + "x".repeat(1100) + "</body></html>";
 }
 
