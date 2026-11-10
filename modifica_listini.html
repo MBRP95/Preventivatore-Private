@@ -1268,7 +1268,7 @@ if(editorBack&&editorParent&&typeof editorParent.__backToChoice==="function"){
   editorBack.hidden=false;
   editorBack.addEventListener("click",()=>editorParent.__backToChoice());
 }
-if(editorLogout&&((editorParent&&typeof editorParent.__logoutStaff==="function")||location.protocol==="http:"||location.protocol==="https:")){
+if(editorLogout&&((editorParent&&typeof editorParent.__logoutStaff==="function")||/^https?:$/.test(location.protocol)||(editorParent&&editorParent.location&&/^https?:$/.test(editorParent.location.protocol)))){
   editorLogout.hidden=false;
   editorLogout.addEventListener("click",async()=>{
     if(editorParent&&typeof editorParent.__logoutStaff==="function"){
@@ -1288,7 +1288,7 @@ const savePasswords=$("savePasswords");
 if(savePasswords){
   savePasswords.addEventListener("click",async()=>{
     const note=$("passwordStatus");
-    const say=text=>{ if(note) note.textContent=text; };
+    const say=text=>{ if(note){ note.textContent=text; try{note.scrollIntoView({block:"nearest"})}catch(e){} } };
     const seller=$("sellerPass").value, seller2=$("sellerPass2").value;
     const admin=$("adminPass").value, admin2=$("adminPass2").value;
     if(!seller&&!admin){ say("Scrivi la password da cambiare."); return; }
@@ -1369,28 +1369,40 @@ if(editorBase){
       try{session=JSON.parse(raw)}catch(e){session={}}
       if(res.status===404||res.status===405||res.status===501||res.status===502||typeof session!=="object"||session===null||!Object.keys(session).length){
         const parentRole=editorParent&&editorParent.__staffRole;
-        if(parentRole==="admin"){
+        if(parentRole==="admin"||(editorParent&&editorParent.__staffSource==="firebase"&&editorParent.__staffRole==="admin")){
           status.textContent="Accesso Admin via Firebase. Caricamento listini dalla pagina…";
           let page="";
+          const tryUrls=[];
           try{
             if(editorParent){
               const pageUrl=String(editorParent.location.href||"").split("#")[0];
-              if(pageUrl.indexOf("http")===0){
-                const pageRes=await fetch(pageUrl,{cache:"no-store"});
-                if(pageRes.ok) page=await pageRes.text();
-              }
+              if(pageUrl.indexOf("http")===0) tryUrls.push(pageUrl);
             }
           }catch(e){}
+          tryUrls.push(new URL("index.html", (editorParent&&editorParent.location&&editorParent.location.href)||location.href).href);
+          for(const u of tryUrls){
+            try{
+              const pageRes=await fetch(u,{cache:"no-store"});
+              if(pageRes.ok){
+                const text=await pageRes.text();
+                if(kindOf(text)==="unito"){ page=text; break; }
+              }
+            }catch(e){}
+          }
           if(kindOf(page)==="unito"){
             loadCombined(page,"index.html");
             publishMode=false;
             csrfToken="";
-            $("fileGestionale").closest("label").classList.add("hidden");
-            $("fileCliente").closest("label").classList.add("hidden");
+            const lg=$("fileGestionale"); const lc=$("fileCliente");
+            if(lg&&lg.closest("label")) lg.closest("label").classList.add("hidden");
+            if(lc&&lc.closest("label")) lc.closest("label").classList.add("hidden");
             $("download").textContent="Scarica HTML aggiornato";
+            $("download").disabled=false;
+            $("reset").disabled=false;
             status.textContent="Listino caricato da GitHub Pages (sessione Firebase). Per pubblicare scarica l'HTML e aggiorna il repository."+scheduleLoadedNote();
             return;
           }
+          status.textContent="Accesso Admin ok, ma il listino non è stato letto dalla pagina. Ricarica oppure carica Gestionale e Preventivo cliente a mano.";
         }
         status.textContent="Server Cloudflare non disponibile. Con accesso Firebase Admin i listini si caricano dalla pagina; altrimenti carica Gestionale e Preventivo cliente a mano.";
         publishMode=false;
