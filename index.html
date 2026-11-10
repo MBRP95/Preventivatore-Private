@@ -333,6 +333,14 @@ if (!firebaseConfigured()) {
     try { await setPersistence(auth, inMemoryPersistence); } catch (e2) {}
   }
   window.firebaseApi = { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, updatePassword, doc, getDoc };
+  try {
+    const shopApp = initializeApp(firebaseConfig, "preventivatore-shop-pass");
+    const shopAuth = getAuth(shopApp);
+    try { await setPersistence(shopAuth, inMemoryPersistence); } catch (e3) {}
+    window.__firebaseSecondary = { auth: shopAuth, signInWithEmailAndPassword, signOut, updatePassword };
+  } catch (e4) {
+    window.__firebaseSecondary = null;
+  }
   window.firebaseReady = true;
   window.firebaseConfigError = "";
   window.dispatchEvent(new Event("firebase-ready"));
@@ -634,10 +642,10 @@ if (!firebaseConfigured()) {
 
 <header><h1>Gestionale preventivi energia</h1><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button><button type="button" id="downloadHtml">Scarica HTML per uso locale</button></div></header>
 <main>
-<details class="panel fold" open><summary>1. Archivio sul computer</summary>
+<section class="panel" open><h2>1. Archivio sul computer</h2>
 <p class="note">La cartella può essere quella di OneDrive. Su Firefox i preventivi restano in questo browser e si riaprono da soli.</p>
-<div class="actions"><button id="chooseFolder">Seleziona cartella sul computer</button><button class="secondary" id="loadArchive" disabled>Rileggi la cartella</button><input id="folderPickerFallback" type="file" class="hidden" webkitdirectory multiple></div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></details>
-<details class="panel fold" open><summary>2. Dati del cliente e del negozio</summary><div class="grid">
+<div class="actions"><button id="chooseFolder">Seleziona cartella sul computer</button><button class="secondary" id="loadArchive" disabled>Rileggi la cartella</button><input id="folderPickerFallback" type="file" class="hidden" webkitdirectory multiple></div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
+<section class="panel" open><h2>2. Dati del cliente e del negozio</h2><div class="grid">
 <label>Nome e cognome cliente<input id="name" placeholder="Mario Rossi"></label>
 <label>Codice fiscale<input id="fiscalCode" placeholder="RSSMRA85A41F205Z" maxlength="16"></label>
 <label>Data preventivo<input id="date" type="date"></label>
@@ -647,19 +655,19 @@ if (!firebaseConfigured()) {
 </div>
 <h3>Dati del negozio / consulente</h3><div class="grid3"><label>Negozio<select id="shopPick"><option value="">Compilazione manuale</option><option value="modena">Flagship Modena</option><option value="verona">Flagship Verona</option></select></label><label>Nome consulente<input id="consultant" placeholder="Nome Cognome"></label><label>Nome punto vendita<input id="shopName" placeholder="Nome negozio"></label><label>Indirizzo punto vendita<input id="shopAddress" placeholder="Via, città"></label><label>Email negozio<input id="shopEmail" type="email" placeholder="negozio@example.com"></label><label>Telefono negozio<input id="shopPhone" type="tel" placeholder="059 123456"></label></div>
 <p class="note">Questi dati sono facoltativi. Senza nome, email e cellulare del cliente puoi generare il PDF con i campi vuoti, ma non salvare il preventivo.</p>
-</details>
+</section>
 <div id="flatFlow" class="hidden">
-<details class="panel fold" open><summary>3. Servizi da includere</summary><div class="checks"><label><input id="includeLight" type="checkbox" checked> Luce</label><label><input id="includeGas" type="checkbox"> Gas</label><label><input id="flatFastweb" type="checkbox" checked> Già cliente Fastweb o Vodafone</label></div>
+<section class="panel" open><h2>3. Servizi da includere</h2><div class="checks"><label><input id="includeLight" type="checkbox" checked> Luce</label><label><input id="includeGas" type="checkbox"> Gas</label><label><input id="flatFastweb" type="checkbox" checked> Già cliente Fastweb o Vodafone</label></div>
 <div id="lightInputs"><h3>Luce</h3><label class="checks"><input id="lightCompare" type="checkbox" checked> Con paragone fattura</label><div id="lightBill" class="grid3"><label>Potenza contatore<select id="meterPower"><option value="3">3 kW — nessun extra</option><option value="4.5">4,5 kW — +5 €/mese</option><option value="6">6 kW — +10 €/mese</option></select></label><label>Residenza<select id="residency"><option value="resident">Residente — nessun extra</option><option value="nonresident">Non residente — +12 €/mese</option></select></label><label>Consumo annuo attuale (kWh)<input id="lightConsumption" type="number" min="0" step="1" placeholder="Es. 1400"></label><label>Spesa annua attuale luce (€)<input id="lightSpend" type="number" min="0" step="0.01" placeholder="Es. 850"></label></div><p class="note" id="lightBillNote">Gli extra di potenza e non residenza si applicano solo alla luce e vengono inclusi nel canone e nel costo annuo stimato.</p><p class="note hidden" id="lightNoCompareHint">Senza paragone si stampano plafond annuo, canone e costo extra soglia.</p></div>
 <div id="gasInputs" class="hidden"><h3>Gas</h3><label class="checks"><input id="gasCompare" type="checkbox" checked> Con paragone fattura</label><div id="gasBill" class="grid"><label>Consumo annuo attuale (Smc)<input id="gasConsumption" type="number" min="0" step="1" placeholder="Es. 595"></label><label>Spesa annua attuale gas (€)<input id="gasSpend" type="number" min="0" step="0.01" placeholder="Es. 867"></label></div><p class="note hidden" id="gasNoCompareHint">Senza paragone si stampano plafond annuo, canone e costo extra soglia.</p></div>
-<div class="actions"><button id="calculate">Calcola tutte le promozioni</button></div><div id="result" class="result hidden" aria-live="polite"></div><div id="calcStatus" class="status hidden"></div></details>
-<details class="panel fold" open><summary>4. Salvataggio, PDF e storico</summary><div class="actions"><button id="saveQuote" disabled>Salva preventivo</button><button id="makePdf" disabled>Scarica PDF</button><button class="secondary" id="showHistory" disabled>Mostra storico</button><button class="secondary" id="showTrash" disabled>Apri cestino</button></div>
+<div class="actions"><button id="calculate">Calcola tutte le promozioni</button></div><div id="result" class="result hidden" aria-live="polite"></div><div id="calcStatus" class="status hidden"></div></section>
+<section class="panel" open><h2>4. Salvataggio, PDF e storico</h2><div class="actions"><button id="saveQuote" disabled>Salva preventivo</button><button id="makePdf" disabled>Scarica PDF</button><button class="secondary" id="showHistory" disabled>Mostra storico</button><button class="secondary" id="showTrash" disabled>Apri cestino</button></div>
 <div id="quotePreview" class="hidden"><h3 id="quotePreviewTitle">Anteprima preventivo</h3><p class="note" id="quotePreviewNote"></p><div class="quote-frame" id="quoteFrame"></div></div>
-<div id="saveStatus" class="status">Compila i dati e calcola le promozioni.</div></details>
+<div id="saveStatus" class="status">Compila i dati e calcola le promozioni.</div></section>
 </div>
 
 <div id="commodityFlow" class="hidden">
-<details class="panel fold"><summary>Preventivi Fix e Flex</summary>
+<section class="panel"><h2>Preventivi Fix e Flex</h2>
 <p class="note">Sezione separata dalle promo FLAT. Stima <b>materia prima</b> e <b>corrispettivo di commercializzazione</b> delle offerte Fastweb Energia.</p>
 <div class="checks">
 <label><input type="radio" name="fxSeg" id="fxSegPrivate" value="private" checked> Privato</label>
@@ -728,10 +736,10 @@ if (!firebaseConfigured()) {
 <p class="note" id="fxPreviewNote">Offerta scelta. I prezzi si intendono imposte escluse.</p>
 <div class="quote-frame" id="fxFrame"></div>
 </div>
-</details>
+</section>
 </div>
 <div id="mixFlow">
-<details class="panel fold"><summary>Flat e Fix/Flex nello stesso PDF</summary>
+<section class="panel"><h2>Flat e Fix/Flex nello stesso PDF</h2>
 <div class="checks" id="mixSegRow">
 <label><input type="radio" name="mixSeg" id="mixSegPrivate" value="private" checked> Privato</label>
 <label><input type="radio" name="mixSeg" id="mixSegPiva" value="piva"> P.IVA</label>
@@ -771,13 +779,13 @@ if (!firebaseConfigured()) {
 <p class="note" id="mixPreviewNote"></p>
 <div class="quote-frame" id="mixFrame"></div>
 </div>
-</details>
+</section>
 </div>
 <details class="panel fold"><summary>Listini configurati</summary><p class="note" id="flatExpiryNote"></p><h3>Luce</h3><table><thead><tr><th>Promo</th><th>Plafond annuo</th><th>Canone/mese</th><th>Canone/anno</th><th>€/kWh</th><th>Sconto convergenza</th></tr></thead><tbody id="lightPriceTable"></tbody></table><h3>Gas</h3><table><thead><tr><th>Promo</th><th>Plafond annuo</th><th>Canone/mese</th><th>Canone/anno</th><th>€/Smc</th><th>Sconto convergenza</th></tr></thead><tbody id="gasPriceTable"></tbody></table><p class="note">Controlla i listini prima dell'uso con clienti reali.</p></details>
 <details class="panel fold"><summary>Listini Fix e Flex</summary>
 <div class="fx-rates" style="overflow-x:auto"><table><thead><tr><th>Offerta</th><th>Cliente</th><th>Tipo</th><th>Energia / spread</th><th>Contributo fisso annuo</th><th>Contributo fisso mensile</th><th>Sconto convergenza</th><th>Durata</th><th>Scadenza</th></tr></thead><tbody id="fxOfferTable"></tbody></table></div>
 </details>
-<details class="panel hidden fold" id="archiveLists"><summary>Storico preventivi</summary><div id="history" class="hidden"></div><div id="trash" class="hidden"></div></details>
+<section class="panel hidden" id="archiveLists"><h2>Storico preventivi</h2><div id="history" class="hidden"></div><div id="trash" class="hidden"></div></section>
 
 </main><footer><span>Gestionale offline. Verifica i risultati e le condizioni commerciali prima di consegnare preventivi reali.</span><span class="credit">Created by Maria Beatriz Ragucci Polato</span></footer><div id="printArea"></div>
 <script>/*!
@@ -4450,19 +4458,20 @@ boot();
     </div>
     <div id="status" class="status">Nessun file caricato.</div>
   </section>
-  <details class="panel hidden fold" id="scheduleBox"><summary>Entra in vigore</summary>
+  <section class="panel hidden" id="scheduleBox"><h2>Entra in vigore</h2>
     <label class="pwd">Data<input id="liveFrom" type="date"></label>
     <p class="hint" id="scheduleHint">Lascia vuoto per applicare subito il listino che vedi. Con una data futura i negozi tengono il listino di oggi fino a quella mezzanotte (ora di Roma) e poi passano a questo.</p>
-  </details>
-  <details class="panel fold" id="accessBox"><summary>Password di accesso</summary>
-    <p class="hint">Su Cloudflare puoi cambiare shop e admin. Su GitHub Pages (Firebase) cambi solo la password del ruolo con cui sei entrato; l’altra si cambia in Firebase Authentication → Users. Minimo 8 caratteri.</p>
+  </section>
+  <section class="panel" id="accessBox"><h2>Password di accesso</h2>
+    <p class="hint">Solo l’admin cambia le password da qui. Su GitHub Pages, per lo shop serve anche la password shop attuale. Minimo 8 caratteri.</p>
+    <label class="pwd">Password shop attuale (solo se cambi lo shop)<input id="sellerPassCurrent" type="password" autocomplete="current-password"></label>
     <label class="pwd">Nuova password shop assistant<input id="sellerPass" type="password" autocomplete="new-password"></label>
     <label class="pwd">Ripeti shop assistant<input id="sellerPass2" type="password" autocomplete="new-password"></label>
     <label class="pwd">Nuova password admin<input id="adminPass" type="password" autocomplete="new-password"></label>
     <label class="pwd">Ripeti admin<input id="adminPass2" type="password" autocomplete="new-password"></label>
     <div class="actions"><button type="button" id="savePasswords" class="secondary">Aggiorna password</button></div>
     <p id="passwordStatus" class="hint"></p>
-  </details>
+  </section>
   <div id="editor" class="hidden"></div>
 </main>
 <footer><span class="credit">Created by Maria Beatriz Ragucci Polato</span></footer>
@@ -4954,7 +4963,7 @@ function flyerPanel(){
   const pages=currentFlyers();
   const handles=["nw","ne","sw","se"].map(h=>`<i class="flyer-handle ${h}" data-h="${h}"></i>`).join("");
   const stages=pages.length?pages.map((src,i)=>`<div class="flyer-pick"><p class="hint">Pagina ${i+1}. Trascina sulla pagina per disegnare il pulsante. Trascinalo per spostarlo, usa gli angoli per ingrandirlo o ridurlo.</p><div class="flyer-canvas" data-i="${i}"><img alt="Volantino ${i+1}" draggable="false" src="${src}"><div class="flyer-box" hidden><span class="flyer-label">Calcola il preventivo per te! →</span>${handles}</div></div><div class="actions" style="margin-top:8px"><button type="button" class="secondary flyer-clear">Cancella pulsante</button></div></div>`).join(""):`<p class="hint">Nessun volantino in questo file.</p>`;
-  return `<details class="panel fold"><summary>Volantini</summary>${stages}<div class="actions" style="margin-top:12px"><label class="file">Carica PDF volantini<input id="flyerFile" type="file" accept="application/pdf,.pdf"></label></div><p id="flyerStatus" class="hint">${flyerStatusText()}</p></details>`;
+  return `<section class="panel"><h2>Volantini</h2>${stages}<div class="actions" style="margin-top:12px"><label class="file">Carica PDF volantini<input id="flyerFile" type="file" accept="application/pdf,.pdf"></label></div><p id="flyerStatus" class="hint">${flyerStatusText()}</p></section>`;
 }
 function bindFlyerInput(){
   const input=$("flyerFile");
@@ -5111,12 +5120,12 @@ function renderEditor(){
     :"";
   $("editor").innerHTML=`
     ${flyerPanel()}
-    <details class="panel fold"><summary>Promo Energia FLAT</summary>
+    <section class="panel"><h2>Promo Energia FLAT</h2>
       ${flatShared}
       ${flatTable("Luce",c.flat.light,"light","kWh")}
       ${flatTable("Gas",c.flat.gas,"gas","Smc")}
-    </details>
-    <details class="panel fold"><summary>Fix e Flex</summary>
+    </section>
+    <section class="panel"><h2>Fix e Flex</h2>
       <h3>Indici PUN e PSV</h3>
       <table><thead><tr><th>Mese</th><th>PUN €/kWh</th><th>PSV €/Smc</th></tr></thead><tbody>
         ${indexRowsHtml(c.indices.series)}
@@ -5127,7 +5136,7 @@ function renderEditor(){
       ${commodityGroup("Luce P.IVA",c.commodity.light.piva,"commodity.light.piva")}
       ${commodityGroup("Gas privato",c.commodity.gas.private,"commodity.gas.private")}
       ${commodityGroup("Gas P.IVA",c.commodity.gas.piva,"commodity.gas.piva")}
-    </details>`;
+    </section>`;
   $("editor").classList.remove("hidden");
   bindFlyerInput();
   bindFlyerDraw();
@@ -5669,25 +5678,42 @@ if(savePasswords){
     if((seller&&seller.length<8)||(admin&&admin.length<8)){ say("Ogni nuova password deve avere almeno 8 caratteri."); return; }
     savePasswords.disabled=true;
     try{
-      const firebaseMode=(editorParent&&editorParent.__staffSource==="firebase")||(!csrfToken&&location.hostname.indexOf("github.io")!==-1);
+      const firebaseMode=(editorParent&&editorParent.__staffSource==="firebase")||(!csrfToken&&(/github\.io$/i.test((editorParent&&editorParent.location&&editorParent.location.hostname)||location.hostname)));
       if(firebaseMode){
         const api=editorParent&&editorParent.firebaseApi;
-        if(!(api&&api.auth&&api.auth.currentUser&&api.updatePassword)){
+        if(!(api&&api.auth&&api.auth.currentUser&&api.updatePassword&&api.signInWithEmailAndPassword)){
           throw Error("Sessione Firebase assente. Esci e accedi di nuovo come Admin.");
         }
         const role=editorParent.__staffRole||"";
-        if(seller&&admin) throw Error("Su GitHub Pages cambia una sola password per volta (quella del ruolo con cui sei entrato).");
-        if(role==="admin"&&seller&&!admin){
-          throw Error("Da Admin non puoi cambiare la password shop qui. In Firebase: Authentication → Users → shop@preventivatore.invalid → Reset password (o modifica password).");
+        if(role!=="admin"){
+          throw Error("Solo l'admin può cambiare le password da qui.");
         }
-        if(role==="seller"&&admin&&!seller){
-          throw Error("Da Shop non puoi cambiare la password admin qui. Entra come admin oppure usala in Firebase Authentication.");
+        const sellerCurrent=(($("sellerPassCurrent")&&$("sellerPassCurrent").value)||"");
+        const emails=(editorParent.FIREBASE_STAFF_EMAILS&&editorParent.FIREBASE_STAFF_EMAILS.length)?editorParent.FIREBASE_STAFF_EMAILS:["shop@preventivatore.invalid","admin@preventivatore.invalid"];
+        const shopEmail=emails.find(e=>String(e).indexOf("shop@")===0)||emails[0];
+        const notes=[];
+        if(seller){
+          if(!sellerCurrent||sellerCurrent.length<8) throw Error("Per cambiare la password shop inserisci anche la password shop attuale.");
+          if(sellerCurrent===seller) throw Error("La nuova password shop deve essere diversa da quella attuale.");
+          const secondary=editorParent.__firebaseSecondary||null;
+          let shopAuthApi=secondary;
+          if(!shopAuthApi){
+            // reuse main app auth in a separate named app created on parent
+            throw Error("Modulo Firebase secondario assente. Ricarica la pagina e riprova.");
+          }
+          const shopCred=await shopAuthApi.signInWithEmailAndPassword(shopAuthApi.auth, shopEmail, sellerCurrent);
+          await shopAuthApi.updatePassword(shopCred.user, seller);
+          try{await shopAuthApi.signOut(shopAuthApi.auth)}catch(e){}
+          notes.push("password shop");
         }
-        const next=(role==="admin")?admin:seller;
-        if(!next) throw Error("Sei entrato come "+role+". Compila la password di quel ruolo.");
-        await api.updatePassword(api.auth.currentUser, next);
+        if(admin){
+          if(admin===seller) throw Error("Shop assistant e admin devono avere password diverse.");
+          await api.updatePassword(api.auth.currentUser, admin);
+          notes.push("password admin");
+        }
+        if($("sellerPassCurrent")) $("sellerPassCurrent").value="";
         $("sellerPass").value=""; $("sellerPass2").value=""; $("adminPass").value=""; $("adminPass2").value="";
-        say("Password Firebase aggiornata per questo account. Al prossimo accesso usa la nuova password.");
+        say("Aggiornate: "+notes.join(" e ")+". Al prossimo accesso usa le nuove password.");
         return;
       }
       const res=await fetch(apiUrl("/api/admin/passwords"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken||""},body:JSON.stringify({seller,admin})});
@@ -5831,6 +5857,8 @@ if($("liveFrom")){
 %%EDITOR_ESCAPED_SCRIPT%%>
 </body>
 </html>
+
+
 
 
 

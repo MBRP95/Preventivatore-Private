@@ -78,19 +78,20 @@
     </div>
     <div id="status" class="status">Nessun file caricato.</div>
   </section>
-  <details class="panel hidden fold" id="scheduleBox"><summary>Entra in vigore</summary>
+  <section class="panel hidden" id="scheduleBox"><h2>Entra in vigore</h2>
     <label class="pwd">Data<input id="liveFrom" type="date"></label>
     <p class="hint" id="scheduleHint">Lascia vuoto per applicare subito il listino che vedi. Con una data futura i negozi tengono il listino di oggi fino a quella mezzanotte (ora di Roma) e poi passano a questo.</p>
-  </details>
-  <details class="panel fold" id="accessBox"><summary>Password di accesso</summary>
-    <p class="hint">Su Cloudflare puoi cambiare shop e admin. Su GitHub Pages (Firebase) cambi solo la password del ruolo con cui sei entrato; l’altra si cambia in Firebase Authentication → Users. Minimo 8 caratteri.</p>
+  </section>
+  <section class="panel" id="accessBox"><h2>Password di accesso</h2>
+    <p class="hint">Solo l’admin cambia le password da qui. Su GitHub Pages, per lo shop serve anche la password shop attuale. Minimo 8 caratteri.</p>
+    <label class="pwd">Password shop attuale (solo se cambi lo shop)<input id="sellerPassCurrent" type="password" autocomplete="current-password"></label>
     <label class="pwd">Nuova password shop assistant<input id="sellerPass" type="password" autocomplete="new-password"></label>
     <label class="pwd">Ripeti shop assistant<input id="sellerPass2" type="password" autocomplete="new-password"></label>
     <label class="pwd">Nuova password admin<input id="adminPass" type="password" autocomplete="new-password"></label>
     <label class="pwd">Ripeti admin<input id="adminPass2" type="password" autocomplete="new-password"></label>
     <div class="actions"><button type="button" id="savePasswords" class="secondary">Aggiorna password</button></div>
     <p id="passwordStatus" class="hint"></p>
-  </details>
+  </section>
   <div id="editor" class="hidden"></div>
 </main>
 <footer><span class="credit">Created by Maria Beatriz Ragucci Polato</span></footer>
@@ -582,7 +583,7 @@ function flyerPanel(){
   const pages=currentFlyers();
   const handles=["nw","ne","sw","se"].map(h=>`<i class="flyer-handle ${h}" data-h="${h}"></i>`).join("");
   const stages=pages.length?pages.map((src,i)=>`<div class="flyer-pick"><p class="hint">Pagina ${i+1}. Trascina sulla pagina per disegnare il pulsante. Trascinalo per spostarlo, usa gli angoli per ingrandirlo o ridurlo.</p><div class="flyer-canvas" data-i="${i}"><img alt="Volantino ${i+1}" draggable="false" src="${src}"><div class="flyer-box" hidden><span class="flyer-label">Calcola il preventivo per te! →</span>${handles}</div></div><div class="actions" style="margin-top:8px"><button type="button" class="secondary flyer-clear">Cancella pulsante</button></div></div>`).join(""):`<p class="hint">Nessun volantino in questo file.</p>`;
-  return `<details class="panel fold"><summary>Volantini</summary>${stages}<div class="actions" style="margin-top:12px"><label class="file">Carica PDF volantini<input id="flyerFile" type="file" accept="application/pdf,.pdf"></label></div><p id="flyerStatus" class="hint">${flyerStatusText()}</p></details>`;
+  return `<section class="panel"><h2>Volantini</h2>${stages}<div class="actions" style="margin-top:12px"><label class="file">Carica PDF volantini<input id="flyerFile" type="file" accept="application/pdf,.pdf"></label></div><p id="flyerStatus" class="hint">${flyerStatusText()}</p></section>`;
 }
 function bindFlyerInput(){
   const input=$("flyerFile");
@@ -739,12 +740,12 @@ function renderEditor(){
     :"";
   $("editor").innerHTML=`
     ${flyerPanel()}
-    <details class="panel fold"><summary>Promo Energia FLAT</summary>
+    <section class="panel"><h2>Promo Energia FLAT</h2>
       ${flatShared}
       ${flatTable("Luce",c.flat.light,"light","kWh")}
       ${flatTable("Gas",c.flat.gas,"gas","Smc")}
-    </details>
-    <details class="panel fold"><summary>Fix e Flex</summary>
+    </section>
+    <section class="panel"><h2>Fix e Flex</h2>
       <h3>Indici PUN e PSV</h3>
       <table><thead><tr><th>Mese</th><th>PUN €/kWh</th><th>PSV €/Smc</th></tr></thead><tbody>
         ${indexRowsHtml(c.indices.series)}
@@ -755,7 +756,7 @@ function renderEditor(){
       ${commodityGroup("Luce P.IVA",c.commodity.light.piva,"commodity.light.piva")}
       ${commodityGroup("Gas privato",c.commodity.gas.private,"commodity.gas.private")}
       ${commodityGroup("Gas P.IVA",c.commodity.gas.piva,"commodity.gas.piva")}
-    </details>`;
+    </section>`;
   $("editor").classList.remove("hidden");
   bindFlyerInput();
   bindFlyerDraw();
@@ -1297,25 +1298,42 @@ if(savePasswords){
     if((seller&&seller.length<8)||(admin&&admin.length<8)){ say("Ogni nuova password deve avere almeno 8 caratteri."); return; }
     savePasswords.disabled=true;
     try{
-      const firebaseMode=(editorParent&&editorParent.__staffSource==="firebase")||(!csrfToken&&location.hostname.indexOf("github.io")!==-1);
+      const firebaseMode=(editorParent&&editorParent.__staffSource==="firebase")||(!csrfToken&&(/github\.io$/i.test((editorParent&&editorParent.location&&editorParent.location.hostname)||location.hostname)));
       if(firebaseMode){
         const api=editorParent&&editorParent.firebaseApi;
-        if(!(api&&api.auth&&api.auth.currentUser&&api.updatePassword)){
+        if(!(api&&api.auth&&api.auth.currentUser&&api.updatePassword&&api.signInWithEmailAndPassword)){
           throw Error("Sessione Firebase assente. Esci e accedi di nuovo come Admin.");
         }
         const role=editorParent.__staffRole||"";
-        if(seller&&admin) throw Error("Su GitHub Pages cambia una sola password per volta (quella del ruolo con cui sei entrato).");
-        if(role==="admin"&&seller&&!admin){
-          throw Error("Da Admin non puoi cambiare la password shop qui. In Firebase: Authentication → Users → shop@preventivatore.invalid → Reset password (o modifica password).");
+        if(role!=="admin"){
+          throw Error("Solo l'admin può cambiare le password da qui.");
         }
-        if(role==="seller"&&admin&&!seller){
-          throw Error("Da Shop non puoi cambiare la password admin qui. Entra come admin oppure usala in Firebase Authentication.");
+        const sellerCurrent=(($("sellerPassCurrent")&&$("sellerPassCurrent").value)||"");
+        const emails=(editorParent.FIREBASE_STAFF_EMAILS&&editorParent.FIREBASE_STAFF_EMAILS.length)?editorParent.FIREBASE_STAFF_EMAILS:["shop@preventivatore.invalid","admin@preventivatore.invalid"];
+        const shopEmail=emails.find(e=>String(e).indexOf("shop@")===0)||emails[0];
+        const notes=[];
+        if(seller){
+          if(!sellerCurrent||sellerCurrent.length<8) throw Error("Per cambiare la password shop inserisci anche la password shop attuale.");
+          if(sellerCurrent===seller) throw Error("La nuova password shop deve essere diversa da quella attuale.");
+          const secondary=editorParent.__firebaseSecondary||null;
+          let shopAuthApi=secondary;
+          if(!shopAuthApi){
+            // reuse main app auth in a separate named app created on parent
+            throw Error("Modulo Firebase secondario assente. Ricarica la pagina e riprova.");
+          }
+          const shopCred=await shopAuthApi.signInWithEmailAndPassword(shopAuthApi.auth, shopEmail, sellerCurrent);
+          await shopAuthApi.updatePassword(shopCred.user, seller);
+          try{await shopAuthApi.signOut(shopAuthApi.auth)}catch(e){}
+          notes.push("password shop");
         }
-        const next=(role==="admin")?admin:seller;
-        if(!next) throw Error("Sei entrato come "+role+". Compila la password di quel ruolo.");
-        await api.updatePassword(api.auth.currentUser, next);
+        if(admin){
+          if(admin===seller) throw Error("Shop assistant e admin devono avere password diverse.");
+          await api.updatePassword(api.auth.currentUser, admin);
+          notes.push("password admin");
+        }
+        if($("sellerPassCurrent")) $("sellerPassCurrent").value="";
         $("sellerPass").value=""; $("sellerPass2").value=""; $("adminPass").value=""; $("adminPass2").value="";
-        say("Password Firebase aggiornata per questo account. Al prossimo accesso usa la nuova password.");
+        say("Aggiornate: "+notes.join(" e ")+". Al prossimo accesso usa le nuove password.");
         return;
       }
       const res=await fetch(apiUrl("/api/admin/passwords"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken||""},body:JSON.stringify({seller,admin})});
