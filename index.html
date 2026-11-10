@@ -643,6 +643,12 @@ if (!firebaseConfigured()) {
   async function enterStaff(){
     const err=document.getElementById("gateError");
     if(err){err.textContent="";err.classList.add("hidden")}
+    if(window.__OFFLINE_BUNDLE){
+      window.__staffRole="seller";
+      window.__staffSource="offline-bundle";
+      await openRole("seller");
+      return;
+    }
     if(onGitHubPages()){
       const fb=await probeFirebase();
       if(fb&&fb.role){await openRole(fb.role);return}
@@ -2719,43 +2725,13 @@ async function downloadLocalHtml(){
       html=await res.text();
     }
     if(!html.includes('id="promo-catalog"'))throw Error("File non riconosciuto");
-    let localAccess=null;
-    try{
-      if(window.__LOCAL_ACCESS&&window.__LOCAL_ACCESS.sellerHash) localAccess=window.__LOCAL_ACCESS;
-    }catch(e){}
-    try{
-      const api=window.firebaseApi;
-      if(api&&api.getDoc&&api.doc&&api.db){
-        const snap=await api.getDoc(api.doc(api.db,"access","passwords"));
-        if(snap.exists()){
-          const row=snap.data()||{};
-          if(row.sellerHash&&row.sellerSalt){
-            localAccess={
-              v:1,
-              sellerSalt:String(row.sellerSalt),
-              sellerHash:String(row.sellerHash),
-              sellerIter:Number(row.sellerIter)||310000
-            };
-            if(row.adminHash&&row.adminSalt){
-              localAccess.adminSalt=String(row.adminSalt);
-              localAccess.adminHash=String(row.adminHash);
-              localAccess.adminIter=Number(row.adminIter)||310000;
-            }
-          }
-        }
-      }
-    }catch(e){}
-    if(localAccess){
-      const boot="<script>window.__LOCAL_ACCESS="+JSON.stringify(localAccess)+";<\/script>";
-      if(/window\.__LOCAL_ACCESS\s*=/.test(html)){
-        html=html.replace(/<script>window\.__LOCAL_ACCESS=[\s\S]*?;\s*<\/script>/i, boot);
-      }else if(html.includes("<head>")){
-        html=html.replace("<head>", "<head>"+boot, 1);
-      }else{
-        html=boot+html;
-      }
+    const boot="<script>window.__OFFLINE_BUNDLE=true;<\/script>";
+    if(/window\.__OFFLINE_BUNDLE\s*=/.test(html)){
+      html=html.replace(/<script>window\.__OFFLINE_BUNDLE=[\s\S]*?;\s*<\/script>/i, boot);
+    }else if(html.includes("<head>")){
+      html=html.replace("<head>", "<head>"+boot, 1);
     }else{
-      alert("Attenzione: nel file locale non c'è ancora la password shop. Aggiorna la password shop da Gestione password (online), poi scarica di nuovo.");
+      html=boot+html;
     }
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([html],{type:"text/html"}));
@@ -4546,6 +4522,12 @@ boot();
     try{sessionStorage.setItem(key,"seller")}catch(e){}
     closeOverlays();
     hidePick();
+    if(window.__OFFLINE_BUNDLE){
+      window.__staffRole="seller";
+      window.__staffSource="offline-bundle";
+      document.body.classList.remove("locked","ask-pass");
+      return;
+    }
     if(window.__enterStaff){await window.__enterStaff();return}
     document.body.classList.add("ask-pass","locked");
     const input=document.getElementById("gatePassword");
