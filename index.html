@@ -2739,6 +2739,7 @@ async function downloadLocalHtml(){
     }else{
       html=boot+html;
     }
+    html=html.replace(/<button[^>]*id="downloadHtml"[^>]*>[\s\S]*?<\/button>/i, "");
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"}));
     a.download="PreventivatoreStore.html";
@@ -2753,6 +2754,12 @@ async function downloadLocalHtml(){
   }
 }
 $("downloadHtml").addEventListener("click",downloadLocalHtml);
+(function hideDownloadWhenOffline(){
+  const btn=$("downloadHtml");
+  if(!btn) return;
+  const offline=!!(window.__OFFLINE_BUNDLE||(window.isOfflineBundle&&window.isOfflineBundle())||location.protocol==="file:"||location.protocol==="content:");
+  if(offline) btn.classList.add("hidden");
+})();
 $("chooseFolder").addEventListener("click",chooseFolder);$("folderPickerFallback").addEventListener("change",async e=>{const files=[...(e.target.files||[])];e.target.value="";try{await importFirefoxFolder(files)}catch(err){$("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err)}});$("loadArchive").addEventListener("click",loadArchive);$("calculate").addEventListener("click",calculate);$("clear").addEventListener("click",clearForm);$("shopPick").addEventListener("change",onShopPick);$("saveQuote").addEventListener("click",saveQuote);$("makePdf").addEventListener("click",makePdf);$("showHistory").addEventListener("click",()=>{if(folderHandle)loadArchive();else alert("Seleziona prima la cartella archivio")});$("showTrash").addEventListener("click",()=>{if(!folderHandle){alert("Seleziona prima la cartella archivio");return}$("trash").classList.toggle("hidden");if(!$("trash").classList.contains("hidden"))loadArchive()});$("includeLight").addEventListener("change",()=>{$("lightInputs").classList.toggle("hidden",!$("includeLight").checked)});$("includeGas").addEventListener("change",()=>{$("gasInputs").classList.toggle("hidden",!$("includeGas").checked)});
 $("lightCompare").addEventListener("change",()=>flatToggleCompare(true));
 $("gasCompare").addEventListener("change",()=>flatToggleCompare(true));
