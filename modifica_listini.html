@@ -1338,7 +1338,31 @@ if(editorBase){
       let session={};
       try{session=JSON.parse(raw)}catch(e){session={}}
       if(res.status===404||res.status===405||res.status===501||res.status===502||typeof session!=="object"||session===null||!Object.keys(session).length){
-        status.textContent="Server di accesso non disponibile qui (GitHub Pages non verifica password in locale). Usa Cloudflare Worker oppure carica Gestionale e Preventivo cliente a mano.";
+        const parentRole=editorParent&&editorParent.__staffRole;
+        if(parentRole==="admin"){
+          status.textContent="Accesso Admin via Firebase. Caricamento listini dalla pagina…";
+          let page="";
+          try{
+            if(editorParent){
+              const pageUrl=String(editorParent.location.href||"").split("#")[0];
+              if(pageUrl.indexOf("http")===0){
+                const pageRes=await fetch(pageUrl,{cache:"no-store"});
+                if(pageRes.ok) page=await pageRes.text();
+              }
+            }
+          }catch(e){}
+          if(kindOf(page)==="unito"){
+            loadCombined(page,"index.html");
+            publishMode=false;
+            csrfToken="";
+            $("fileGestionale").closest("label").classList.add("hidden");
+            $("fileCliente").closest("label").classList.add("hidden");
+            $("download").textContent="Scarica HTML aggiornato";
+            status.textContent="Listino caricato da GitHub Pages (sessione Firebase). Per pubblicare scarica l'HTML e aggiorna il repository."+scheduleLoadedNote();
+            return;
+          }
+        }
+        status.textContent="Server Cloudflare non disponibile. Con accesso Firebase Admin i listini si caricano dalla pagina; altrimenti carica Gestionale e Preventivo cliente a mano.";
         publishMode=false;
         csrfToken="";
         $("fileGestionale").closest("label").classList.remove("hidden");

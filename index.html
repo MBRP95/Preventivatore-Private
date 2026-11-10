@@ -299,12 +299,37 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 <div id="gate">
 <form id="gateForm">
 <h1>Shop Assistant</h1>
-<p id="gateLead">Inserisci la password. Il server la verifica e, se è corretta, questo browser può lavorare offline per 30 giorni.</p>
+<p id="gateLead">Inserisci la password. Su GitHub Pages la verifica Firebase (come ListinoSmartphones); con Cloudflare resta il Worker. Le password non stanno nel file del sito.</p>
 <label>Password<input id="gatePassword" type="password" autocomplete="current-password"></label>
 <button type="submit">Entra</button>
 <p id="gateError" class="status hidden"></p>
 </form>
 </div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, setPersistence, browserLocalPersistence, inMemoryPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyA-FeADcnW89AOSuAZ-i3xnF7reReOcg2o",
+  authDomain: "deviceproposer.firebaseapp.com",
+  projectId: "deviceproposer",
+  storageBucket: "deviceproposer.firebasestorage.app",
+  messagingSenderId: "257823727896",
+  appId: "1:257823727896:web:783a061ee5239c0960be6d",
+  measurementId: "G-K0ED9BVXG6"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+try {
+  await setPersistence(auth, browserLocalPersistence);
+} catch (e) {
+  try { await setPersistence(auth, inMemoryPersistence); } catch (e2) {}
+}
+window.firebaseApi = { auth, db, onAuthStateChanged, signInWithEmailAndPassword, signOut, doc, getDoc };
+window.firebaseReady = true;
+window.dispatchEvent(new Event("firebase-ready"));
+</script>
 <script>
 "use strict";
 (function(){
@@ -406,13 +431,101 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     if(typeof data!=="object"||data===null) return true;
     return false;
   }
+  function onGitHubPages(){
+    return /\.github\.io$/i.test(location.hostname||"");
+  }
+  // Account Firebase del preventivatore (stesso progetto di ListinoSmartphones).
+  // Le password stanno solo in Firebase Authentication, non nel file del sito.
+  const FIREBASE_STAFF_EMAILS=[
+    "preventivatore-shop@deviceproposer.invalid",
+    "preventivatore-admin@deviceproposer.invalid"
+  ];
+  function waitFirebase(ms){
+    if(window.firebaseReady&&window.firebaseApi) return Promise.resolve(window.firebaseApi);
+    return new Promise(function(resolve,reject){
+      const t=setTimeout(function(){reject(new Error("Firebase non è pronto."));},ms||8000);
+      window.addEventListener("firebase-ready",function once(){
+        clearTimeout(t);
+        window.removeEventListener("firebase-ready",once);
+        resolve(window.firebaseApi);
+      });
+    });
+  }
+  async function readFirebaseProfile(api, uid){
+    const snap=await api.getDoc(api.doc(api.db,"users",uid));
+    if(!snap.exists()) return null;
+    return Object.assign({}, snap.data(), {uid:uid});
+  }
+  async function firebaseRoleFromUser(api, user){
+    const profile=await readFirebaseProfile(api, user.uid);
+    if(!profile) return {error:"missing-profile"};
+    if(profile.active!==true) return {error:"inactive"};
+    if(profile.app&&profile.app!=="preventivatore") return {error:"wrong-app"};
+    if(profile.role!=="seller"&&profile.role!=="admin") return {error:"bad-role"};
+    return {role:profile.role, uid:user.uid};
+  }
+  async function probeFirebase(){
+    try{
+      const api=await waitFirebase(2500);
+      const user=api.auth.currentUser;
+      if(!user) return null;
+      const found=await firebaseRoleFromUser(api, user);
+      if(found.error) return null;
+      window.__staffRole=found.role;
+      window.__staffSource="firebase";
+      return found;
+    }catch(e){return null}
+  }
+  async function loginFirebase(password){
+    const api=await waitFirebase(8000);
+    let last="invalid";
+    for(const email of FIREBASE_STAFF_EMAILS){
+      try{
+        const cred=await api.signInWithEmailAndPassword(api.auth, email, password);
+        const found=await firebaseRoleFromUser(api, cred.user);
+        if(found.error==="missing-profile"){ await api.signOut(api.auth); last="missing-profile"; continue; }
+        if(found.error==="inactive"){ await api.signOut(api.auth); last="inactive"; continue; }
+        if(found.error==="wrong-app"){ await api.signOut(api.auth); last="wrong-app"; continue; }
+        if(found.error==="bad-role"){ await api.signOut(api.auth); last="bad-role"; continue; }
+        window.__staffRole=found.role;
+        window.__staffSource="firebase";
+        return found;
+      }catch(e){
+        const code=String(e&&e.code||"");
+        if(code==="auth/invalid-credential"||code==="auth/wrong-password"||code==="auth/user-not-found"||code==="auth/invalid-email"){
+          last="invalid";
+          continue;
+        }
+        if(code==="auth/too-many-requests") return {error:"rate"};
+        if(code==="auth/network-request-failed") return {error:"network"};
+        throw e;
+      }
+    }
+    return {error:last};
+  }
   async function enterStaff(){
     const err=document.getElementById("gateError");
     if(err){err.textContent="";err.classList.add("hidden")}
+    if(onGitHubPages()){
+      const fb=await probeFirebase();
+      if(fb&&fb.role){await openRole(fb.role);return}
+    }
     const session=await probe();
-    if(session&&(session.role==="seller"||session.role==="admin"||session.role==="editor")){await openRole(session.role);return}
+    if(session&&(session.role==="seller"||session.role==="admin"||session.role==="editor")){
+      window.__staffRole=session.role==="editor"?"admin":session.role;
+      window.__staffSource="cloudflare";
+      await openRole(session.role);return
+    }
     const grant=await readGrant();
-    if(grant.ok){await openRole(grant.role);return}
+    if(grant.ok){
+      window.__staffRole=grant.role;
+      window.__staffSource="offline";
+      await openRole(grant.role);return
+    }
+    if(!onGitHubPages()){
+      const fb=await probeFirebase();
+      if(fb&&fb.role){await openRole(fb.role);return}
+    }
     if(grant.reason==="expired") showError("L'autorizzazione offline è scaduta. Serve un accesso online.");
     else if(grant.reason==="clock") showError("L'orologio del dispositivo risulta spostato indietro. Serve un accesso online.");
     else if(grant.reason==="bad-signature"||grant.reason==="lifetime"||grant.reason==="malformed"||grant.reason==="not-yet") showError("L'autorizzazione offline non è valida. Serve un accesso online.");
@@ -425,13 +538,33 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     const input=document.getElementById("gatePassword");
     const value=input.value;
     input.value="";
+    async function viaFirebase(){
+      try{
+        const pages=await loginFirebase(value);
+        if(pages.error==="invalid"){showError("Password non corretta.");return}
+        if(pages.error==="missing-profile"){showError("Account Firebase senza profilo. Crea il documento users in Firestore.");return}
+        if(pages.error==="inactive"){showError("Account disattivato.");return}
+        if(pages.error==="wrong-app"){showError("Questo account non è abilitato al preventivatore.");return}
+        if(pages.error==="bad-role"){showError("Ruolo Firebase non valido per il preventivatore.");return}
+        if(pages.error==="rate"){showError("Troppi tentativi su Firebase. Riprova tra qualche minuto.");return}
+        if(pages.error==="network"){showError("Firebase non è raggiungibile dalla rete corrente.");return}
+        if(pages.role){await openRole(pages.role);return}
+        showError("Accesso Firebase non riuscito.");
+      }catch(e){
+        showError("Accesso Firebase non riuscito: "+(e&&e.message?e.message:String(e)));
+      }
+    }
+    if(onGitHubPages()){
+      await viaFirebase();
+      return;
+    }
     try{
       const res=await fetch(new URL("api/login", location.href).href,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:value})});
       const raw=await res.text();
       let data={};
       try{data=JSON.parse(raw)}catch(e){data={}}
       if(apiMiss(res, Object.keys(data).length?data:null)){
-        showError("Qui non c'è il server di accesso (serve Cloudflare Worker). Su GitHub Pages la password non viene controllata in locale.");
+        await viaFirebase();
         return;
       }
       if(res.status===429){showError("Troppi tentativi. Riprova tra qualche minuto.");return}
@@ -439,19 +572,28 @@ header .header-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
       if(!res.ok){showError("Password non corretta.");return}
       csrf=data.csrf||"";
       if(data.offline) saveOffline(data.offline);
+      window.__staffRole=data.role==="editor"?"admin":data.role;
+      window.__staffSource="cloudflare";
       if(data.offlineError){
         const status=document.getElementById("folderStatus");
         if(status) status.textContent=data.offlineError;
       }
       await openRole(data.role);
     }catch(e){
-      showError("Server di accesso non raggiungibile. La password non viene verificata in questo browser.");
+      await viaFirebase();
     }
   });
   window.__enterStaff=enterStaff;
   window.__saveOffline=saveOffline;
   window.__logoutStaff=async function(){
     clearGrant();
+    window.__staffRole="";
+    window.__staffSource="";
+    try{
+      if(window.firebaseApi&&window.firebaseApi.auth){
+        await window.firebaseApi.signOut(window.firebaseApi.auth);
+      }
+    }catch(e){}
     try{
       if(!csrf){
         const res=await fetch(new URL("api/session", location.href).href,{credentials:"same-origin",cache:"no-store"});
@@ -5548,7 +5690,31 @@ if(editorBase){
       let session={};
       try{session=JSON.parse(raw)}catch(e){session={}}
       if(res.status===404||res.status===405||res.status===501||res.status===502||typeof session!=="object"||session===null||!Object.keys(session).length){
-        status.textContent="Server di accesso non disponibile qui (GitHub Pages non verifica password in locale). Usa Cloudflare Worker oppure carica Gestionale e Preventivo cliente a mano.";
+        const parentRole=editorParent&&editorParent.__staffRole;
+        if(parentRole==="admin"){
+          status.textContent="Accesso Admin via Firebase. Caricamento listini dalla pagina…";
+          let page="";
+          try{
+            if(editorParent){
+              const pageUrl=String(editorParent.location.href||"").split("#")[0];
+              if(pageUrl.indexOf("http")===0){
+                const pageRes=await fetch(pageUrl,{cache:"no-store"});
+                if(pageRes.ok) page=await pageRes.text();
+              }
+            }
+          }catch(e){}
+          if(kindOf(page)==="unito"){
+            loadCombined(page,"index.html");
+            publishMode=false;
+            csrfToken="";
+            $("fileGestionale").closest("label").classList.add("hidden");
+            $("fileCliente").closest("label").classList.add("hidden");
+            $("download").textContent="Scarica HTML aggiornato";
+            status.textContent="Listino caricato da GitHub Pages (sessione Firebase). Per pubblicare scarica l'HTML e aggiorna il repository."+scheduleLoadedNote();
+            return;
+          }
+        }
+        status.textContent="Server Cloudflare non disponibile. Con accesso Firebase Admin i listini si caricano dalla pagina; altrimenti carica Gestionale e Preventivo cliente a mano.";
         publishMode=false;
         csrfToken="";
         $("fileGestionale").closest("label").classList.remove("hidden");
