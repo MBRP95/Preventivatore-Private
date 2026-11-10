@@ -65,18 +65,48 @@ function usableSecret(value) {
   return text;
 }
 
+const ACCESS_KEY = "access:passwords";
+
+async function sha256Hex(text) {
+  const bytes = await sha256(text);
+  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function hexToBytes(hex) {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+
+async function readAccess(env) {
+  if (!env.SESSIONS) return { gen: 0, seller: "", admin: "" };
+  const raw = await env.SESSIONS.get(ACCESS_KEY);
+  if (!raw) return { gen: 0, seller: "", admin: "" };
+  try {
+    const row = JSON.parse(raw);
+    return {
+      gen: Number(row.gen) || 0,
+      seller: typeof row.seller === "string" ? row.seller : "",
+      admin: typeof row.admin === "string" ? row.admin : ""
+    };
+  } catch (e) {
+    return { gen: 0, seller: "", admin: "" };
+  }
+}
+
 async function matchRole(password, env) {
-  const seller = usableSecret(env.SELLER_PASSWORD);
-  const admin = usableSecret(env.ADMIN_PASSWORD);
-  if (!seller && !admin) return { error: "unconfigured" };
-  if (seller && admin && seller === admin) return { error: "unconfigured" };
+  const access = await readAccess(env);
+  const sellerSecret = usableSecret(env.SELLER_PASSWORD);
+  const adminSecret = usableSecret(env.ADMIN_PASSWORD);
+  const sellerHash = access.seller || (sellerSecret ? await sha256Hex(sellerSecret) : "");
+  const adminHash = access.admin || (adminSecret ? await sha256Hex(adminSecret) : "");
+  if (!sellerHash && !adminHash) return { error: "unconfigured" };
+  if (sellerHash && adminHash && sellerHash === adminHash) return { error: "unconfigured" };
   const got = await sha256(password);
-  const adminDigest = await sha256(admin || "admin-unset");
-  const sellerDigest = await sha256(seller || "seller-unset");
-  const adminOk = !!admin && sameBytes(got, adminDigest);
-  const sellerOk = !!seller && sameBytes(got, sellerDigest);
-  if (adminOk) return { role: "admin" };
-  if (sellerOk) return { role: "seller" };
+  const adminOk = !!adminHash && sameBytes(got, hexToBytes(adminHash));
+  const sellerOk = !!sellerHash && sameBytes(got, hexToBytes(sellerHash));
+  if (adminOk) return { role: "admin", gen: access.gen };
+  if (sellerOk) return { role: "seller", gen: access.gen };
   return { error: "invalid" };
 }
 
@@ -101,12 +131,13 @@ async function clearFail(env, ip) {
   await env.SESSIONS.delete("fail:" + ip);
 }
 
-async function createSession(env, role) {
+async function createSession(env, role, gen) {
   const id = randomId();
   const csrf = randomId();
   const exp = Math.floor(Date.now() / 1000) + SESSION_TTL;
-  await env.SESSIONS.put("sess:" + id, JSON.stringify({ role, sub: role, exp, csrf }), { expirationTtl: SESSION_TTL });
-  return { id, csrf, exp, role, sub: role };
+  const accessGen = Number(gen) || 0;
+  await env.SESSIONS.put("sess:" + id, JSON.stringify({ role, sub: role, exp, csrf, gen: accessGen }), { expirationTtl: SESSION_TTL });
+  return { id, csrf, exp, role, sub: role, gen: accessGen };
 }
 
 async function readSession(env, request) {
@@ -122,6 +153,11 @@ async function readSession(env, request) {
     return null;
   }
   if (row.role !== "seller" && row.role !== "admin") return null;
+  const access = await readAccess(env);
+  if ((Number(row.gen) || 0) !== access.gen) {
+    await env.SESSIONS.delete("sess:" + id);
+    return null;
+  }
   return { id, ...row };
 }
 
@@ -149,11 +185,12 @@ async function signingKey(env) {
   return signingKeyPromise;
 }
 
-async function offlineGrant(env, role) {
+async function offlineGrant(env, role, gen) {
   try {
     const key = await signingKey(env);
     if (!key) return { offline: null, offlineError: "Chiave di firma offline non configurata." };
-    const signed = await signOfflineToken(key, { sub: role, role, nowMs: Date.now() });
+    const accessGen = gen == null ? (await readAccess(env)).gen : Number(gen) || 0;
+    const signed = await signOfflineToken(key, { sub: role, role, nowMs: Date.now(), gen: accessGen });
     const publicKey = await publicJwkOf(key);
     return {
       offline: {
@@ -191,10 +228,61 @@ function cleanMessage(value) {
   return text.slice(0, 120) || "Aggiorna i listini.";
 }
 
+async function accessGen(env) {
+  const access = await readAccess(env);
+  return json({ gen: access.gen });
+}
+
+function passwordError(label, value) {
+  if (value.length < 8) return label + " deve avere almeno 8 caratteri.";
+  if (BURNED.has(value)) return label + " non può usare una password già nota.";
+  return "";
+}
+
+async function updatePasswords(request, env) {
+  const gate = await requireSession(request, env);
+  if (gate.error) return gate.error;
+  if (!csrfOk(request, gate.session)) return json({ error: "Richiesta non valida." }, 403);
+  if (gate.session.role !== "admin") return json({ error: "Operazione riservata all'amministratore." }, 403);
+  let body = {};
+  try { body = await request.json(); } catch (e) { body = {}; }
+  const seller = String(body.seller || "");
+  const admin = String(body.admin || "");
+  if (!seller && !admin) return json({ error: "Scrivi la password da cambiare." }, 400);
+  const sellerProblem = seller ? passwordError("Shop assistant", seller) : "";
+  if (sellerProblem) return json({ error: sellerProblem }, 400);
+  const adminProblem = admin ? passwordError("Admin", admin) : "";
+  if (adminProblem) return json({ error: adminProblem }, 400);
+  if (seller && admin && seller === admin) return json({ error: "Shop assistant e admin devono avere password diverse." }, 400);
+  const current = await readAccess(env);
+  const sellerSecret = usableSecret(env.SELLER_PASSWORD);
+  const adminSecret = usableSecret(env.ADMIN_PASSWORD);
+  const sellerHash = seller ? await sha256Hex(seller) : current.seller;
+  const adminHash = admin ? await sha256Hex(admin) : current.admin;
+  const effectiveSeller = sellerHash || (sellerSecret ? await sha256Hex(sellerSecret) : "");
+  const effectiveAdmin = adminHash || (adminSecret ? await sha256Hex(adminSecret) : "");
+  if (effectiveSeller && effectiveAdmin && effectiveSeller === effectiveAdmin) {
+    return json({ error: "Shop assistant e admin devono avere password diverse." }, 400);
+  }
+  const gen = current.gen + 1;
+  await env.SESSIONS.put(ACCESS_KEY, JSON.stringify({ gen, seller: sellerHash, admin: adminHash }));
+  const ttl = Math.max(60, gate.session.exp - Math.floor(Date.now() / 1000));
+  await env.SESSIONS.put("sess:" + gate.session.id, JSON.stringify({
+    role: gate.session.role,
+    sub: gate.session.sub,
+    exp: gate.session.exp,
+    csrf: gate.session.csrf,
+    gen
+  }), { expirationTtl: ttl });
+  const grant = await offlineGrant(env, gate.session.role, gen);
+  return json({ ok: true, gen, offline: grant.offline || null, offlineError: grant.offlineError || "" });
+}
+
 async function api(request, env, url) {
-  if (!env.SESSIONS && url.pathname !== "/api/public-index") {
+  if (!env.SESSIONS && url.pathname !== "/api/public-index" && url.pathname !== "/api/access-gen") {
     return json({ error: "Sessioni non configurate." }, 503);
   }
+  if (request.method === "GET" && url.pathname === "/api/access-gen") return accessGen(env);
   if (request.method === "POST" && url.pathname === "/api/login") return login(request, env);
   if (request.method === "GET" && url.pathname === "/api/session") return session(request, env);
   if (request.method === "POST" && url.pathname === "/api/logout") return logout(request, env);
@@ -202,6 +290,7 @@ async function api(request, env, url) {
   if (request.method === "GET" && url.pathname === "/api/offline-pubkey") return offlinePubkey(env);
   if (request.method === "GET" && url.pathname === "/api/admin/files") return adminFiles(request, env);
   if (request.method === "POST" && url.pathname === "/api/admin/publish") return adminPublish(request, env);
+  if (request.method === "POST" && url.pathname === "/api/admin/passwords") return updatePasswords(request, env);
   if (request.method === "GET" && url.pathname === "/api/public-index") return publicIndex(env);
   if (url.pathname === "/api/quotes" || url.pathname.startsWith("/api/quotes/")) {
     return json({ error: "I preventivi restano sul computer." }, 404);
@@ -222,7 +311,7 @@ async function login(request, env) {
     return json({ error: "Credenziali non valide." }, 401);
   }
   await clearFail(env, ip);
-  const created = await createSession(env, found.role);
+  const created = await createSession(env, found.role, found.gen);
   const grant = await offlineGrant(env, found.role);
   return json(sessionBody(created, grant), 200, { "set-cookie": sessionCookie(created.id, request, SESSION_TTL) });
 }

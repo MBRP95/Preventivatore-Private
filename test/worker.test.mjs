@@ -191,8 +191,10 @@ test("backend di accesso e listini", async (t) => {
     assert.equal(ok.ok, true);
     assert.equal(ok.payload.exp - ok.payload.iat, 30 * 24 * 60 * 60);
 
-    const flipped = signed.token.slice(0, -1) + (signed.token.endsWith("a") ? "b" : "a");
-    assert.equal((await verifyOfflineToken(flipped, publicKey, now + 1000)).ok, false);
+    const dot = signed.token.indexOf(".");
+    const signature = signed.token.slice(dot + 1);
+    const broken = signed.token.slice(0, dot + 1) + (signature[0] === "A" ? "B" : "A") + signature.slice(1);
+    assert.equal((await verifyOfflineToken(broken, publicKey, now + 1000)).ok, false);
     assert.equal((await verifyOfflineToken(signed.token, publicKey, now + 31 * 24 * 60 * 60 * 1000)).reason, "expired");
     const clock = await assessStoredGrant({ token: signed.token, publicKey, lastSeen: now + 60 * 60 * 1000 }, now);
     assert.equal(clock.reason, "clock");
@@ -219,5 +221,52 @@ test("backend di accesso e listini", async (t) => {
     }
     const blocked = await call("/api/login", { method: "POST", body: { password: SELLER }, ip });
     assert.equal(blocked.status, 429);
+  });
+
+  await t.test("l'admin cambia le password e le sessioni precedenti scadono", async () => {
+    const before = await call("/api/access-gen");
+    assert.equal(before.status, 200);
+    assert.equal(before.data.gen, 0);
+    const admin = await call("/api/login", { method: "POST", body: { password: ADMIN }, ip: "203.0.113.40" });
+    const seller = await call("/api/login", { method: "POST", body: { password: SELLER }, ip: "203.0.113.41" });
+    const denied = await call("/api/admin/passwords", {
+      method: "POST",
+      cookie: cookieOf(seller),
+      csrf: seller.data.csrf,
+      body: { seller: "seller-nuova-99" }
+    });
+    assert.equal(denied.status, 403);
+    const missing = await call("/api/admin/passwords", {
+      method: "POST",
+      cookie: cookieOf(admin),
+      body: { seller: "seller-nuova-99" }
+    });
+    assert.equal(missing.status, 403);
+    const short = await call("/api/admin/passwords", {
+      method: "POST",
+      cookie: cookieOf(admin),
+      csrf: admin.data.csrf,
+      body: { admin: "corta" }
+    });
+    assert.equal(short.status, 400);
+    const changed = await call("/api/admin/passwords", {
+      method: "POST",
+      cookie: cookieOf(admin),
+      csrf: admin.data.csrf,
+      body: { seller: "seller-nuova-99" }
+    });
+    assert.equal(changed.status, 200);
+    assert.equal(changed.data.gen, 1);
+    assert.equal(JSON.stringify(changed.data).includes("seller-nuova-99"), false);
+    const oldSeller = await call("/api/login", { method: "POST", body: { password: SELLER }, ip: "203.0.113.42" });
+    assert.equal(oldSeller.status, 401);
+    const newSeller = await call("/api/login", { method: "POST", body: { password: "seller-nuova-99" }, ip: "203.0.113.43" });
+    assert.equal(newSeller.status, 200);
+    assert.equal(newSeller.data.role, "seller");
+    const stillAdmin = await call("/api/session", { cookie: cookieOf(admin) });
+    assert.equal(stillAdmin.status, 200);
+    const dropped = await call("/api/session", { cookie: cookieOf(seller) });
+    assert.equal(dropped.status, 401);
+    await sessions.delete("access:passwords");
   });
 });

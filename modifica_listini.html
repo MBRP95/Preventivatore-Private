@@ -77,6 +77,16 @@
     <label class="pwd">Data<input id="liveFrom" type="date"></label>
     <p class="hint" id="scheduleHint">Lascia vuoto per applicare subito il listino che vedi. Con una data futura i negozi tengono il listino di oggi fino a quella mezzanotte (ora di Roma) e poi passano a questo.</p>
   </section>
+  <section class="panel" id="accessBox">
+    <h2>Password di accesso</h2>
+    <p class="hint">Lascia vuoto il ruolo che non vuoi cambiare. Ogni password nuova ha almeno 8 caratteri. Shop assistant e admin restano diverse. Il valore non finisce nel file pubblicato.</p>
+    <label class="pwd">Nuova password shop assistant<input id="sellerPass" type="password" autocomplete="new-password"></label>
+    <label class="pwd">Ripeti shop assistant<input id="sellerPass2" type="password" autocomplete="new-password"></label>
+    <label class="pwd">Nuova password admin<input id="adminPass" type="password" autocomplete="new-password"></label>
+    <label class="pwd">Ripeti admin<input id="adminPass2" type="password" autocomplete="new-password"></label>
+    <div class="actions"><button type="button" id="savePasswords" class="secondary">Aggiorna password</button></div>
+    <p id="passwordStatus" class="hint"></p>
+  </section>
   <div id="editor" class="hidden"></div>
 </main>
 <footer><span class="credit">Created by Maria Beatriz Ragucci Polato</span></footer>
@@ -1268,6 +1278,32 @@ if(editorLogout&&((editorParent&&typeof editorParent.__logoutStaff==="function")
     try{localStorage.removeItem("preventivatore-offline-grant")}catch(e){}
     const status=$("status");
     if(status) status.textContent="Sei uscito. Per modificare i listini serve un nuovo accesso Admin.";
+  });
+}
+const savePasswords=$("savePasswords");
+if(savePasswords){
+  savePasswords.addEventListener("click",async()=>{
+    const note=$("passwordStatus");
+    const say=text=>{ if(note) note.textContent=text; };
+    const seller=$("sellerPass").value, seller2=$("sellerPass2").value;
+    const admin=$("adminPass").value, admin2=$("adminPass2").value;
+    if(!seller&&!admin){ say("Scrivi la password da cambiare."); return; }
+    if(seller&&seller!==seller2){ say("Le due password dello shop assistant non coincidono."); return; }
+    if(admin&&admin!==admin2){ say("Le due password admin non coincidono."); return; }
+    if((seller&&seller.length<8)||(admin&&admin.length<8)){ say("Ogni nuova password deve avere almeno 8 caratteri."); return; }
+    savePasswords.disabled=true;
+    try{
+      const res=await fetch(apiUrl("/api/admin/passwords"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken||""},body:JSON.stringify({seller,admin})});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok) throw Error(data.error||"Aggiornamento non riuscito.");
+      $("sellerPass").value=""; $("sellerPass2").value=""; $("adminPass").value=""; $("adminPass2").value="";
+      if(data.offline&&editorParent&&typeof editorParent.__saveOffline==="function") editorParent.__saveOffline(data.offline);
+      say("Password aggiornata. Chi era già entrato deve accedere di nuovo. Un dispositivo offline tiene il permesso precedente finché non si ricollega, o fino alla scadenza di 30 giorni.");
+    }catch(e){
+      say(e&&e.message?e.message:String(e));
+    }finally{
+      savePasswords.disabled=false;
+    }
   });
 }
 async function shellWithCatalog(remoteText){

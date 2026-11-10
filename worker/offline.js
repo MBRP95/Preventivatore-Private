@@ -48,11 +48,11 @@ export async function publicJwkOf(privateKey) {
   return { kty: full.kty, crv: full.crv, x: full.x, y: full.y, ext: true, key_ops: ["verify"] };
 }
 
-export async function signOfflineToken(privateKey, { sub, role, nowMs }) {
+export async function signOfflineToken(privateKey, { sub, role, nowMs, gen }) {
   const iat = Math.floor(nowMs / 1000);
   const exp = iat + OFFLINE_TTL_SEC;
   const jti = bytesToB64url(crypto.getRandomValues(new Uint8Array(16)));
-  const payload = { v: 1, sub, role, iat, exp, jti };
+  const payload = { v: 1, sub, role, iat, exp, jti, gen: Number(gen) || 0 };
   const data = textEncoder.encode(JSON.stringify(payload));
   const sig = new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, privateKey, data));
   return {
