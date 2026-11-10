@@ -507,6 +507,14 @@ if (!firebaseConfigured()) {
     err.classList.remove("hidden");
   }
   function unlockSeller(){document.body.classList.remove("locked","ask-pass")}
+  function isOfflineBundle(){
+    if(window.__OFFLINE_BUNDLE) return true;
+    const p=String(location.protocol||"");
+    if(p==="file:"||p==="content:"||p==="blob:") return true;
+    if(!location.hostname&&p!=="http:"&&p!=="https:") return true;
+    return false;
+  }
+  window.isOfflineBundle=isOfflineBundle;
   async function probe(){
     try{
       const res=await fetch(new URL("api/session", location.href).href,{credentials:"same-origin",cache:"no-store"});
@@ -643,7 +651,7 @@ if (!firebaseConfigured()) {
   async function enterStaff(){
     const err=document.getElementById("gateError");
     if(err){err.textContent="";err.classList.add("hidden")}
-    if(window.__OFFLINE_BUNDLE){
+    if(isOfflineBundle()){
       window.__staffRole="seller";
       window.__staffSource="offline-bundle";
       await openRole("seller");
@@ -2711,30 +2719,28 @@ async function downloadLocalHtml(){
   const btn=$("downloadHtml");
   btn.disabled=true;
   try{
-    const urlMeta=document.querySelector('meta[name="update-url"]');
     let html="";
-    if(urlMeta&&urlMeta.content){
+    if(location.protocol!=="file:"){
       try{
-        const remote=await fetch(urlMeta.content+(urlMeta.content.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"});
-        if(remote.ok)html=await remote.text();
+        const pageUrl=String(location.href||"").split("#")[0];
+        const res=await fetch(pageUrl+(pageUrl.includes("?")?"&":"?")+"download=1&t="+Date.now(),{cache:"no-store"});
+        if(res.ok) html=await res.text();
       }catch(e){}
     }
-    if(!html.includes('id="promo-catalog"')&&location.protocol!=="file:"){
-      const res=await fetch(location.href,{cache:"no-store"});
-      if(!res.ok)throw Error("Risposta "+res.status);
-      html=await res.text();
+    if(!html.includes('id="promo-catalog"')){
+      try{html="<!DOCTYPE html>\n"+document.documentElement.outerHTML}catch(e){html=""}
     }
     if(!html.includes('id="promo-catalog"'))throw Error("File non riconosciuto");
     const boot="<script>window.__OFFLINE_BUNDLE=true;<\/script>";
-    if(/window\.__OFFLINE_BUNDLE\s*=/.test(html)){
-      html=html.replace(/<script>window\.__OFFLINE_BUNDLE=[\s\S]*?;\s*<\/script>/i, boot);
-    }else if(html.includes("<head>")){
-      html=html.replace("<head>", "<head>"+boot, 1);
+    if(html.indexOf("__OFFLINE_BUNDLE")>=0){
+      html=html.replace(/<script>\s*window\.__OFFLINE_BUNDLE\s*=[\s\S]*?;\s*<\/script>/i, boot);
+    }else if(/<head[^>]*>/i.test(html)){
+      html=html.replace(/<head[^>]*>/i, function(m){return m+boot;});
     }else{
       html=boot+html;
     }
     const a=document.createElement("a");
-    a.href=URL.createObjectURL(new Blob([html],{type:"text/html"}));
+    a.href=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"}));
     a.download="PreventivatoreStore.html";
     document.body.appendChild(a);
     a.click();
@@ -4522,7 +4528,7 @@ boot();
     try{sessionStorage.setItem(key,"seller")}catch(e){}
     closeOverlays();
     hidePick();
-    if(window.__OFFLINE_BUNDLE){
+    if((window.isOfflineBundle&&window.isOfflineBundle())||window.__OFFLINE_BUNDLE||location.protocol==="file:"||location.protocol==="content:"){
       window.__staffRole="seller";
       window.__staffSource="offline-bundle";
       document.body.classList.remove("locked","ask-pass");
