@@ -314,7 +314,7 @@ details.panel[open]>summary::after{content:"−"}
 <div id="gate">
 <form id="gateForm">
 <h1>Shop Assistant</h1>
-<p id="gateLead">Inserisci la password. Su GitHub Pages la verifica Firebase; con Cloudflare resta il Worker. Le password non stanno nel file del sito.</p>
+<p id="gateLead">Inserisci la password per continuare.</p>
 <label>Password<input id="gatePassword" type="password" autocomplete="current-password"></label>
 <button type="submit">Entra</button>
 <p id="gateError" class="status hidden"></p>
@@ -345,7 +345,7 @@ window.firebaseConfigured = firebaseConfigured;
 if (!firebaseConfigured()) {
   window.firebaseApi = null;
   window.firebaseReady = true;
-  window.firebaseConfigError = "Progetto Firebase del preventivatore non configurato. Compila firebase-config.js.";
+  window.firebaseConfigError = "Accesso non configurato. Contatta l'amministratore.";
   window.dispatchEvent(new Event("firebase-ready"));
 } else {
   const app = initializeApp(firebaseConfig);
@@ -634,21 +634,21 @@ if (!firebaseConfigured()) {
     async function viaFirebase(){
       try{
         const pages=await loginFirebase(value);
-        if(pages.error==="unconfigured"){showError(window.firebaseConfigError||"Progetto Firebase del preventivatore non configurato (firebase-config.js).");return}
+        if(pages.error==="unconfigured"){showError("Accesso non configurato. Contatta l'amministratore.");return}
         if(pages.error==="invalid"){showError("Password non corretta.");return}
-        if(pages.error==="domain"){showError("Aggiungi mbrp95.github.io in Authentication → Settings → Authorized domains.");return}
-        if(pages.error==="provider"){showError("In Authentication abilita il provider Email/password.");return}
-        if(pages.error==="missing-profile"){showError("Account Firebase senza profilo. Crea il documento users/{uid} in Firestore.");return}
+        if(pages.error==="domain"){showError("Dominio non autorizzato per l'accesso. Contatta l'amministratore.");return}
+        if(pages.error==="provider"){showError("Accesso non disponibile. Contatta l'amministratore.");return}
+        if(pages.error==="missing-profile"){showError("Account senza profilo. Contatta l'amministratore.");return}
         if(pages.error==="inactive"){showError("Account disattivato.");return}
-        if(pages.error==="wrong-app"){showError("Questo account non è abilitato al preventivatore.");return}
-        if(pages.error==="bad-role"){showError("Ruolo Firebase non valido per il preventivatore.");return}
-        if(pages.error==="rate"){showError("Troppi tentativi su Firebase. Riprova tra qualche minuto.");return}
-        if(pages.error==="network"){showError("Firebase non è raggiungibile dalla rete corrente.");return}
-        if(pages.error==="firebase"){showError("Firebase: "+(pages.detail||pages.code||"errore"));return}
+        if(pages.error==="wrong-app"){showError("Account non abilitato.");return}
+        if(pages.error==="bad-role"){showError("Ruolo non valido.");return}
+        if(pages.error==="rate"){showError("Troppi tentativi. Riprova tra qualche minuto.");return}
+        if(pages.error==="network"){showError("Connessione non disponibile. Riprova.");return}
+        if(pages.error==="firebase"){showError("Accesso non riuscito. Riprova.");return}
         if(pages.role){await openRole(pages.role);return}
-        showError("Accesso Firebase non riuscito.");
+        showError("Accesso non riuscito.");
       }catch(e){
-        showError("Accesso Firebase non riuscito: "+(e&&e.message?e.message:String(e)));
+        showError("Accesso non riuscito. Riprova.");
       }
     }
     if(onGitHubPages()){
@@ -4598,9 +4598,9 @@ boot();
 <header>
   <h1>Modifica listini</h1>
   <div class="actions">
-    <button type="button" id="openPasswords" class="secondary" hidden>Password</button>
+    <button type="button" id="openPasswords" class="secondary" hidden>Gestione password</button>
     <button type="button" id="editorBack" class="secondary" hidden>Indietro</button>
-    <button type="button" id="editorLogout" class="secondary" hidden>Esci</button>
+    <button type="button" id="editorLogout" hidden>Esci</button>
   </div>
 </header>
 <main>
