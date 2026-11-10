@@ -387,7 +387,11 @@ function catalogPayload(data,liveFrom){
   return out;
 }
 function removeScheduled(html){
-  return String(html).replace(/\n?<script type="application\/json" id="promo-catalog-next">[\s\S]*?<\/script>/g,"");
+  return String(html).replace(/\n?<script type="application\/json" id="promo-catalog-next">[\s\S]*?<\/script>/g, function(block){
+    const m=block.match(/<script type="application\/json" id="promo-catalog-next">([\s\S]*?)<\/script>/);
+    if(!m) return block;
+    try{ JSON.parse(m[1]); return ""; }catch(e){ return block; }
+  });
 }
 function upsertScheduled(html,data,liveFrom){
   const pretty=JSON.stringify(catalogPayload(data,liveFrom),null,2);
@@ -402,8 +406,10 @@ function writeCatalogPlan(html,edited,from){
   return removeScheduled(replaceCatalog(html,edited));
 }
 function scheduledBlock(html){
-  const m=String(html||"").match(/<script type="application\/json" id="promo-catalog-next">[\s\S]*?<\/script>/);
-  return m?m[0]:"";
+  const next=extractScheduled(html);
+  if(!next) return "";
+  const pretty=JSON.stringify(catalogPayload(next.catalog, next.liveFrom), null, 2);
+  return '<script type="application/json" id="promo-catalog-next">\n'+pretty+'\n</scr'+'ipt>';
 }
 function applyScheduledBlock(html,block){
   const stripped=removeScheduled(html);
