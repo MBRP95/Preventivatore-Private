@@ -62,6 +62,7 @@
 <header>
   <h1>Modifica listini</h1>
   <div class="actions">
+    <button type="button" id="openPasswords" class="secondary" hidden>Password</button>
     <button type="button" id="editorBack" class="secondary" hidden>Indietro</button>
     <button type="button" id="editorLogout" class="secondary" hidden>Esci</button>
   </div>
@@ -82,15 +83,6 @@
     <label class="pwd">Data<input id="liveFrom" type="date"></label>
     <p class="hint" id="scheduleHint">Lascia vuoto per applicare subito il listino che vedi. Con una data futura i negozi tengono il listino di oggi fino a quella mezzanotte (ora di Roma) e poi passano a questo.</p>
   </section>
-  <details class="panel" id="accessBox"><summary>Password di accesso</summary>
-    <p class="hint">Solo l’admin cambia le password da qui. Minimo 8 caratteri. La password shop non richiede quella attuale.</p>
-    <label class="pwd">Nuova password shop assistant<input id="sellerPass" type="password" autocomplete="new-password"></label>
-    <label class="pwd">Ripeti shop assistant<input id="sellerPass2" type="password" autocomplete="new-password"></label>
-    <label class="pwd">Nuova password admin<input id="adminPass" type="password" autocomplete="new-password"></label>
-    <label class="pwd">Ripeti admin<input id="adminPass2" type="password" autocomplete="new-password"></label>
-    <div class="actions"><button type="button" id="savePasswords" class="secondary">Aggiorna password</button></div>
-    <p id="passwordStatus" class="hint"></p>
-  </details>
   <div id="editor" class="hidden"></div>
 </main>
 <footer><span class="credit">Created by Maria Beatriz Ragucci Polato</span></footer>
@@ -1284,70 +1276,10 @@ if(editorLogout&&((editorParent&&typeof editorParent.__logoutStaff==="function")
     if(status) status.textContent="Sei uscito. Per modificare i listini serve un nuovo accesso Admin.";
   });
 }
-const savePasswords=$("savePasswords");
-if(savePasswords){
-  savePasswords.addEventListener("click",async()=>{
-    const note=$("passwordStatus");
-    const say=text=>{ if(note){ note.textContent=text; try{note.scrollIntoView({block:"nearest"})}catch(e){} } };
-    const seller=$("sellerPass").value, seller2=$("sellerPass2").value;
-    const admin=$("adminPass").value, admin2=$("adminPass2").value;
-    if(!seller&&!admin){ say("Scrivi la password da cambiare."); return; }
-    if(seller&&seller!==seller2){ say("Le due password dello shop assistant non coincidono."); return; }
-    if(admin&&admin!==admin2){ say("Le due password admin non coincidono."); return; }
-    if((seller&&seller.length<8)||(admin&&admin.length<8)){ say("Ogni nuova password deve avere almeno 8 caratteri."); return; }
-    savePasswords.disabled=true;
-    try{
-      const firebaseMode=(editorParent&&editorParent.__staffSource==="firebase")||(!csrfToken&&(/github\.io$/i.test((editorParent&&editorParent.location&&editorParent.location.hostname)||location.hostname)));
-      if(firebaseMode){
-        const api=editorParent&&editorParent.firebaseApi;
-        if(!(api&&api.auth&&api.auth.currentUser&&api.updatePassword)){
-          throw Error("Sessione Firebase assente. Esci e accedi di nuovo come Admin.");
-        }
-        const role=editorParent.__staffRole||"";
-        if(role!=="admin"){
-          throw Error("Solo l'admin può cambiare le password da qui.");
-        }
-        const notes=[];
-        if(seller){
-          if(!(api.setDoc&&api.doc&&api.pbkdf2Hex&&api.randomSaltHex)){
-            throw Error("Funzioni Firebase incomplete. Ricarica la pagina e riprova.");
-          }
-          if(admin&&admin===seller) throw Error("Shop assistant e admin devono avere password diverse.");
-          const salt=api.randomSaltHex();
-          const iter=310000;
-          const hash=await api.pbkdf2Hex(seller, salt, iter);
-          const payload={v:1, sellerSalt:salt, sellerHash:hash, sellerIter:iter};
-          if(api.serverTimestamp) payload.updatedAt=api.serverTimestamp();
-          else payload.updatedAt=new Date().toISOString();
-          await api.setDoc(api.doc(api.db,"access","passwords"), payload);
-          notes.push("password shop");
-        }
-        if(admin){
-          if(seller&&admin===seller) throw Error("Shop assistant e admin devono avere password diverse.");
-          await api.updatePassword(api.auth.currentUser, admin);
-          notes.push("password admin");
-        }
-        $("sellerPass").value=""; $("sellerPass2").value=""; $("adminPass").value=""; $("adminPass2").value="";
-        say("Aggiornate: "+notes.join(" e ")+". Al prossimo accesso usa le nuove password.");
-        return;
-      }
-      const res=await fetch(apiUrl("/api/admin/passwords"),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken||""},body:JSON.stringify({seller,admin})});
-      const raw=await res.text();
-      let data={};
-      try{data=JSON.parse(raw)}catch(e){data={}}
-      if(res.status===404||res.status===405||!Object.keys(data).length){
-        throw Error("Server Cloudflare non disponibile. Su GitHub Pages usa il cambio password Firebase (solo il tuo account) oppure Authentication in console.");
-      }
-      if(!res.ok) throw Error(data.error||"Aggiornamento non riuscito.");
-      $("sellerPass").value=""; $("sellerPass2").value=""; $("adminPass").value=""; $("adminPass2").value="";
-      if(data.offline&&editorParent&&typeof editorParent.__saveOffline==="function") editorParent.__saveOffline(data.offline);
-      say("Password aggiornata. Chi era già entrato deve accedere di nuovo. Un dispositivo offline tiene il permesso precedente finché non si ricollega, o fino alla scadenza di 30 giorni.");
-    }catch(e){
-      say(e&&e.message?e.message:String(e));
-    }finally{
-      savePasswords.disabled=false;
-    }
-  });
+const openPasswords=$("openPasswords");
+if(openPasswords&&editorParent&&typeof editorParent.__openPasswordModal==="function"){
+  openPasswords.hidden=false;
+  openPasswords.addEventListener("click",()=>editorParent.__openPasswordModal());
 }
 async function shellWithCatalog(remoteText){
   let page="";
