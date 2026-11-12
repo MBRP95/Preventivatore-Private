@@ -874,7 +874,7 @@ if (!firebaseConfigured()) {
 <header><h1>Gestionale preventivi energia</h1><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button><button type="button" id="downloadHtml">Scarica HTML per uso locale</button></div></header>
 <main>
 <section class="panel" open><h2>1. Archivio sul computer</h2>
-<p class="note">Tocca il pulsante giallo e scegli la cartella (anche OneDrive). I preventivi vengono letti da lì; quando salvi, il browser scarica i JSON da mettere in dati/preventivi. Su Chrome/Edge dal sito puoi anche usare «Scrivi direttamente nella cartella». Su Firefox la funzione è disabilitata.</p>
+<p class="note">Tocca il pulsante giallo e scegli la cartella con i file PREV-….json (anche OneDrive; vanno bene in radice o in dati/preventivi). Quando salvi, il browser scarica i JSON da rimettere lì. Su Chrome/Edge dal sito puoi usare «Scrivi direttamente nella cartella». Su Firefox è disabilitata.</p>
 <div class="actions"><label id="chooseFolder" class="folder-pick">Seleziona cartella sul computer<input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple></label><button type="button" id="chooseFolderDirect" class="secondary hidden">Scrivi direttamente nella cartella</button><button type="button" class="secondary" id="loadArchive" disabled>Rileggi la cartella</button></div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
 <section class="panel" open><h2>2. Dati del cliente e del negozio</h2><div class="grid">
 <label>Nome e cognome cliente<input id="name" placeholder="Mario Rossi"></label>
@@ -1583,7 +1583,24 @@ async function readFirefoxStore(){const db=await openFirefoxDb();const row=await
 function firefoxFileHandle(store,path,name){return {kind:"file",name,async getFile(){return new File([store.files[path]?.text||""],name,{type:"application/json",lastModified:store.files[path]?.mtime||Date.now()})},async createWritable(){let buf="";return {async write(data){if(typeof data==="string")buf+=data;else if(data&&typeof data.text==="function")buf+=await data.text();else if(data&&typeof data.data==="string")buf+=data.data;else buf+=String(data??"")},async close(){store.files[path]={text:buf,mtime:Date.now()};store.hint="";await persistFirefoxStore(store);if(store.ephemeral&&typeof downloadTextFile==="function")downloadTextFile(path,buf)}}}}}
 function firefoxDirHandle(store,dirPath){const name=dirPath?dirPath.split("/").pop():store.name;return {kind:"directory",name,firefoxFallback:true,store,async requestPermission(){return "granted"},async getDirectoryHandle(child,opts){const p=dirPath?dirPath+"/"+child:child;const exists=store.dirs.has(p)||Object.keys(store.files).some(k=>k.startsWith(p+"/"));if(!exists){if(!opts||!opts.create)throw Object.assign(new Error("Cartella non trovata"),{name:"NotFoundError"});store.dirs.add(p);await persistFirefoxStore(store)}return firefoxDirHandle(store,p)},async getFileHandle(child,opts){const p=dirPath?dirPath+"/"+child:child;if(!store.files[p]){if(!opts||!opts.create)throw Object.assign(new Error("File non trovato"),{name:"NotFoundError"});store.files[p]={text:"",mtime:Date.now()};await persistFirefoxStore(store)}return firefoxFileHandle(store,p,child)},async *entries(){const prefix=dirPath?dirPath+"/":"";const seen=new Set();for(const p of Object.keys(store.files)){if(!p.startsWith(prefix))continue;const rest=p.slice(prefix.length);if(!rest)continue;const slash=rest.indexOf("/");if(slash===-1)yield [rest,firefoxFileHandle(store,p,rest)];else{const dirName=rest.slice(0,slash);if(!seen.has(dirName)){seen.add(dirName);yield [dirName,firefoxDirHandle(store,prefix+dirName)]}}}for(const d of store.dirs){if(!d.startsWith(prefix))continue;const rest=d.slice(prefix.length);if(!rest||rest.includes("/"))continue;if(!seen.has(rest)){seen.add(rest);yield [rest,firefoxDirHandle(store,d)]}}},async removeEntry(child){const p=dirPath?dirPath+"/"+child:child;delete store.files[p];const nested=p+"/";for(const k of Object.keys(store.files))if(k.startsWith(nested))delete store.files[k];store.dirs.delete(p);for(const d of [...store.dirs])if(d.startsWith(nested))store.dirs.delete(d);await persistFirefoxStore(store)}}}
 function relPathOf(file){return String(file.webkitRelativePath||file._rel||file.name||"").replace(/\\/g,"/")}
-function archivePathFromRel(rel){const parts=String(rel||"").split("/").filter(Boolean);if(!parts.length)return null;const leaf=parts[parts.length-1].toLowerCase();if(!leaf.endsWith(".json"))return null;const dati=parts.findIndex(p=>p.toLowerCase()==="dati");if(dati>=0)return parts.slice(dati).join("/");const prev=parts.findIndex(p=>p.toLowerCase()==="preventivi");if(prev>=0)return "dati/"+parts.slice(prev).join("/");const cest=parts.findIndex(p=>p.toLowerCase()==="cestino");if(cest>=0)return "dati/"+parts.slice(cest).join("/");if(leaf==="clienti.json")return "dati/clienti.json";return null}
+function archivePathFromRel(rel){
+  const parts=String(rel||"").split("/").filter(Boolean);
+  if(!parts.length)return null;
+  const leafName=parts[parts.length-1];
+  const leaf=leafName.toLowerCase();
+  if(!leaf.endsWith(".json"))return null;
+  const dati=parts.findIndex(p=>p.toLowerCase()==="dati");
+  if(dati>=0)return parts.slice(dati).join("/");
+  const prev=parts.findIndex(p=>p.toLowerCase()==="preventivi");
+  if(prev>=0)return "dati/"+parts.slice(prev).join("/");
+  const cest=parts.findIndex(p=>p.toLowerCase()==="cestino");
+  if(cest>=0)return "dati/"+parts.slice(cest).join("/");
+  if(leaf==="clienti.json")return "dati/clienti.json";
+  if(leaf==="ultimo-numero.json")return "dati/ultimo-numero.json";
+  // Preventivi in radice cartella (senza dati/preventivi/)
+  if(/^prev-/i.test(leafName))return "dati/preventivi/"+leafName;
+  return null;
+}
 function isArchiveJson(arch){const lower=String(arch||"").toLowerCase();if(lower==="dati/clienti.json"||lower==="dati/ultimo-numero.json")return true;if(lower.startsWith("dati/preventivi/")&&!lower.slice("dati/preventivi/".length).includes("/"))return true;if(lower.startsWith("dati/cestino/")&&!lower.slice("dati/cestino/".length).includes("/"))return true;return false}
 async function importFirefoxFolder(fileList){
   if(window.isSecureContext&&!isLocalOfflineFile()&&typeof window.showDirectoryPicker!=="function"){
@@ -1604,7 +1621,7 @@ async function importFirefoxFolder(fileList){
   }
   let store=ephemeral?null:await readFirefoxStore();
   if(!accepted.length){
-    store={name:folderName,files:{},dirs:new Set(["dati","dati/preventivi","dati/cestino","documenti"]),hint:"Nessun preventivo trovato: seleziona la cartella che contiene dati/preventivi.",ephemeral:ephemeral};
+    store={name:folderName,files:{},dirs:new Set(["dati","dati/preventivi","dati/cestino","documenti"]),hint:"Nessun preventivo JSON riconosciuto. Seleziona la cartella con i file PREV-….json (in radice o in dati/preventivi), insieme a clienti.json se c'è.",ephemeral:ephemeral};
     await persistFirefoxStore(store);
     folderHandle=firefoxDirHandle(store,"");
     enableArchiveButtons();
@@ -1630,9 +1647,15 @@ async function importFirefoxFolder(fileList){
   folderHandle=firefoxDirHandle(store,"");
   enableArchiveButtons();
   await loadArchive();
-  if(ephemeral){
-    $("folderStatus").textContent="Cartella \""+folderName+"\" caricata ("+imported+" file). Storico aggiornato. Quando salvi, il browser scarica i JSON: spostali in OneDrive/dati/preventivi.";
+  if(quotes&&quotes.length){
+    if($("history")) $("history").classList.remove("hidden");
+    if(typeof renderHistory==="function") renderHistory();
   }
+  const skipped=Math.max(0, files.filter(f=>/\.json$/i.test(relPathOf(f))).length-accepted.length);
+  let msg="Cartella \""+folderName+"\" selezionata. Preventivi caricati: "+(quotes&&quotes.length||0)+" (file letti: "+imported+").";
+  if(skipped) msg+=" Ignorati "+skipped+" JSON non di archivio.";
+  if(ephemeral) msg+=" Quando salvi, il browser scarica i JSON: mettili nella cartella dei preventivi.";
+  if($("folderStatus")) $("folderStatus").textContent=msg;
 }
 
 async function restoreFirefoxArchive(){
@@ -1719,7 +1742,7 @@ function normalizeQuote(q){
  }
  return q;
 }
-async function loadArchive(){if(!folderHandle)return;try{const d=await ensureDir(folderHandle,"dati"),qdir=await ensureDir(d,"preventivi"),tdir=await ensureDir(d,"cestino");customers=await readJson(d,"clienti.json",[]);quotes=(await readJsonFiles(qdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));trashQuotes=(await readJsonFiles(tdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));quotes.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));trashQuotes.sort((a,b)=>(b.deletedAt||"").localeCompare(a.deletedAt||""));await rememberIssuedNumbers();let archiveMsg=`Cartella letta. Preventivi: ${quotes.length}. Nel cestino: ${trashQuotes.length}. Il prossimo numero è quello dopo l'ultimo, anche se un preventivo è stato cancellato.`;if(folderHandle.firefoxFallback){archiveMsg+=" Funzione non disponibile per Firefox.";if(folderHandle.store&&folderHandle.store.hint){archiveMsg+=" "+folderHandle.store.hint;folderHandle.store.hint=""}}$("folderStatus").textContent=archiveMsg;renderHistory();renderTrash()}catch(e){$("folderStatus").textContent="Errore lettura archivio: "+e.message}}
+async function loadArchive(){if(!folderHandle)return;try{const d=await ensureDir(folderHandle,"dati"),qdir=await ensureDir(d,"preventivi"),tdir=await ensureDir(d,"cestino");customers=await readJson(d,"clienti.json",[]);quotes=(await readJsonFiles(qdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));trashQuotes=(await readJsonFiles(tdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));quotes.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));trashQuotes.sort((a,b)=>(b.deletedAt||"").localeCompare(a.deletedAt||""));await rememberIssuedNumbers();let archiveMsg=`Cartella letta. Preventivi: ${quotes.length}. Nel cestino: ${trashQuotes.length}. Il prossimo numero è quello dopo l'ultimo, anche se un preventivo è stato cancellato.`;if(folderHandle.firefoxFallback){if(folderHandle.store&&folderHandle.store.ephemeral){archiveMsg+=" Cartella caricata in memoria: i nuovi salvataggi scaricano i JSON.";}else{archiveMsg+=" Funzione non disponibile per Firefox.";}if(folderHandle.store&&folderHandle.store.hint){archiveMsg+=" "+folderHandle.store.hint;folderHandle.store.hint=""}}$("folderStatus").textContent=archiveMsg;renderHistory();renderTrash()}catch(e){$("folderStatus").textContent="Errore lettura archivio: "+e.message}}
 function sectionReady(s){if(!s)return false;if(s.product==="commodity")return !!s.offer;return !!(s.selectedPromo&&s.calculations)}
 async function saveQuote(){if(!currentQuote)return;applyFormIdentity(currentQuote);if(!customerReady(currentQuote.customer)){alert("Senza nome, email e cellulare del cliente il preventivo non si può salvare. Puoi comunque scaricare il PDF.");$("saveQuote").disabled=true;return}for(const [k,s] of Object.entries(currentQuote.sections))if(!sectionReady(s)){alert("Seleziona una promozione per ogni servizio incluso.");return}if(!folderHandle){alert("Seleziona la cartella archivio sul computer.");return}
  try{const d=await ensureDir(folderHandle,"dati"),qdir=await ensureDir(d,"preventivi");await ensureUniqueId(currentQuote);currentQuote.quoteNumber=await assignQuoteNumber(currentQuote);currentQuote.status="salvato";currentQuote.savedAt=new Date().toISOString();await writeQuoteFile(qdir,currentQuote);const ci=customers.findIndex(c=>c.email.toLowerCase()===currentQuote.customer.email.toLowerCase());const cust={...currentQuote.customer,shop:currentQuote.shop};if(ci>=0)customers[ci]=cust;else customers.push(cust);await writeJson(d,"clienti.json",customers);await loadArchive();showQuotePreview(currentQuote);$("saveStatus").textContent=savedArchiveMessage(currentQuote.quoteNumber,`Salvato ${currentQuote.quoteNumber}. Il file è nella cartella, con il suo numero.`);$("makePdf").disabled=false}catch(e){$("saveStatus").textContent="Errore nel salvataggio: "+e.message}}
@@ -2862,7 +2885,17 @@ if($("downloadHtml")) $("downloadHtml").addEventListener("click",downloadLocalHt
   const offline=!!(window.__OFFLINE_BUNDLE||(window.isOfflineBundle&&window.isOfflineBundle())||location.protocol==="file:"||location.protocol==="content:");
   if(offline) btn.classList.add("hidden");
 })();
-if($("folderPickerFallback")) $("folderPickerFallback").addEventListener("change",async e=>{const files=[...(e.target.files||[])];e.target.value="";try{await importFirefoxFolder(files)}catch(err){if($("folderStatus")) $("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err)}});
+if($("folderPickerFallback")) $("folderPickerFallback").addEventListener("change",async e=>{
+  const files=[...(e.target.files||[])];
+  if($("folderStatus")) $("folderStatus").textContent="Lettura cartella in corso… ("+files.length+" file)";
+  try{
+    await importFirefoxFolder(files);
+  }catch(err){
+    if($("folderStatus")) $("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err);
+  }finally{
+    try{e.target.value="";}catch(err){}
+  }
+});
 if($("chooseFolderDirect")) $("chooseFolderDirect").addEventListener("click",chooseFolderDirectWrite);
 if($("loadArchive")) $("loadArchive").addEventListener("click",loadArchive);$("calculate").addEventListener("click",calculate);$("clear").addEventListener("click",clearForm);$("shopPick").addEventListener("change",onShopPick);$("saveQuote").addEventListener("click",saveQuote);$("makePdf").addEventListener("click",makePdf);$("showHistory").addEventListener("click",()=>{if(folderHandle)loadArchive();else alert("Seleziona prima la cartella archivio")});$("showTrash").addEventListener("click",()=>{if(!folderHandle){alert("Seleziona prima la cartella archivio");return}$("trash").classList.toggle("hidden");if(!$("trash").classList.contains("hidden"))loadArchive()});$("includeLight").addEventListener("change",()=>{$("lightInputs").classList.toggle("hidden",!$("includeLight").checked)});$("includeGas").addEventListener("change",()=>{$("gasInputs").classList.toggle("hidden",!$("includeGas").checked)});
 $("lightCompare").addEventListener("change",()=>flatToggleCompare(true));
