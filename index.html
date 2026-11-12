@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="it">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-08T23:10:00.000Z"><meta name="update-url" content="/api/public-index">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-12T16:16:02.000Z"><meta name="update-url" content="/api/public-index">
 <title>Gestionale preventivi energia — Offline</title>
 <style>
 :root{font-family:Arial,Helvetica,sans-serif;color:#292929;background:#fffbea;--fw-yellow:#ffe500;--fw-yellow-deep:#f4d900;--fw-ink:#242424;--fw-muted:#66615a;--fw-border:#eadf83;--fw-pale:#fff8bf}
@@ -14,7 +14,7 @@ label{display:block;font-size:13px;font-weight:700;color:#39352b}input,select{di
 .result{background:#fffdf0;border:1px solid #e4d64d;border-radius:9px;padding:14px;margin-top:14px;overflow-x:auto}
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.kpi{background:#fffdf0;border:1px solid #e8db61;border-radius:8px;padding:12px}.kpi span{display:block;font-size:12px;color:#706b55;margin-bottom:6px}.kpi strong{font-size:20px}
 table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px}th,td{text-align:left;border-bottom:1px solid #eee4a4;padding:8px 7px;white-space:nowrap}th{background:#fff3a1;color:#292929}
-.hidden{display:none!important}label.folder-pick,button.folder-local-pick{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--fw-ink);border-radius:7px;padding:10px 13px;font-weight:800;cursor:pointer;background:var(--fw-yellow);color:var(--fw-ink);position:relative;overflow:hidden;margin:0}label.folder-pick.hidden,button.folder-local-pick.hidden{display:none!important}label.folder-pick input.folder-file-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0;border:0;padding:0;margin:0}.checks{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 14px}.checks label{display:flex;align-items:center;gap:7px}.checks input{width:auto;margin:0;accent-color:#d1bd00}
+.hidden{display:none!important}.folder-pick-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;min-height:42px;border:1px solid var(--fw-ink);border-radius:7px;padding:10px 13px;font-weight:800;cursor:pointer;background:var(--fw-yellow);color:var(--fw-ink);margin:0;overflow:hidden}.folder-pick-wrap.hidden{display:none!important}.folder-pick-wrap .folder-pick-face{pointer-events:none;user-select:none}.folder-pick-wrap input.folder-file-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:18px;border:0;padding:0;margin:0}.checks{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 14px}.checks label{display:flex;align-items:center;gap:7px}.checks input{width:auto;margin:0;accent-color:#d1bd00}
 footer{max-width:1100px;margin:0 auto;padding:8px 16px 22px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;font-size:12px;color:#756f58}
 footer .credit{margin-left:auto;text-align:right;font-style:italic;font-size:12px;color:#756f58;white-space:nowrap}
 @media(max-width:700px){.grid,.grid3,.kpis{grid-template-columns:1fr}header{padding:18px}.panel{padding:14px}footer{flex-direction:column;align-items:flex-end}footer .credit{white-space:normal}}
@@ -874,8 +874,8 @@ if (!firebaseConfigured()) {
 <header><h1>Gestionale preventivi energia</h1><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button><button type="button" id="downloadHtml">Scarica HTML per uso locale</button></div></header>
 <main>
 <section class="panel" open><h2>1. Archivio sul computer</h2>
-<p class="note">Tocca il pulsante giallo e scegli la cartella con i file PREV-….json (anche OneDrive; vanno bene in radice o in dati/preventivi). Quando salvi, il browser scarica i JSON da rimettere lì. Su Chrome/Edge dal sito puoi usare «Scrivi direttamente nella cartella». Su Firefox è disabilitata.</p>
-<div class="actions"><label id="chooseFolder" class="folder-pick">Seleziona cartella sul computer<input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple></label><button type="button" id="chooseFolderDirect" class="secondary hidden">Scrivi direttamente nella cartella</button><button type="button" class="secondary" id="loadArchive" disabled>Rileggi la cartella</button></div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
+<p class="note">Tocca il giallo e scegli la cartella con i PREV-….json. Se vedi i file al passaggio del mouse ma lo status non cambia, premi «Carica i file già scelti». Lo storico compare sotto (sezione Storico preventivi).</p>
+<div class="actions"><div id="chooseFolder" class="folder-pick-wrap"><span class="folder-pick-face">Seleziona cartella sul computer</span><input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple></div><button type="button" id="loadSelectedFolder" class="secondary">Carica i file già scelti</button><button type="button" id="chooseFolderDirect" class="secondary hidden">Scrivi direttamente nella cartella</button><button type="button" class="secondary" id="loadArchive" disabled>Rileggi la cartella</button></div><div id="buildStamp" class="note" style="margin-top:6px">Build cartella: 2026-11-12T16:16:02.000Z</div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
 <section class="panel" open><h2>2. Dati del cliente e del negozio</h2><div class="grid">
 <label>Nome e cognome cliente<input id="name" placeholder="Mario Rossi"></label>
 <label>Codice fiscale<input id="fiscalCode" placeholder="RSSMRA85A41F205Z" maxlength="16"></label>
@@ -1726,15 +1726,8 @@ async function chooseFolderDirectWrite(){
   }
 }
 async function chooseFolder(){
-  // Retrocompatibilità: il pulsante giallo è una label nativa sull'input directory.
   const input=$("folderPickerFallback");
-  if($("folderStatus")) $("folderStatus").textContent="Scegli la cartella OneDrive nella finestra del browser…";
-  if(input){
-    try{input.value="";}catch(e){}
-    try{input.click();}catch(e){
-      if($("folderStatus")) $("folderStatus").textContent="Impossibile aprire la scelta cartella: "+(e&&e.message?e.message:e);
-    }
-  }
+  if(input){ try{input.click();}catch(e){} }
 }
 async function readJsonFiles(dir){const arr=[];for await(const [name,h] of dir.entries())if(h.kind==="file"&&name.endsWith(".json")){try{let text=await(await h.getFile()).text();if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);arr.push({name,data:JSON.parse(text)})}catch(e){}}return arr}
 function normalizeQuote(q){
@@ -2890,69 +2883,69 @@ if($("downloadHtml")) $("downloadHtml").addEventListener("click",downloadLocalHt
 })();
 (function wireFolderPicker(){
   const input=$("folderPickerFallback");
-  const label=$("chooseFolder");
+  const wrap=$("chooseFolder");
   if(!input||input.dataset.wired==="1") return;
   input.dataset.wired="1";
   let lastSig="";
+  function fileSig(fileList){
+    const files=[...(fileList||[])];
+    return files.length+":"+files.map(f=>(f.webkitRelativePath||f.name)+":"+f.size+":"+f.lastModified).slice(0,40).join("|");
+  }
+  function revealHistory(){
+    const wrapEl=$("archiveLists");
+    const host=$("history");
+    if(wrapEl){ wrapEl.classList.remove("hidden"); try{wrapEl.open=true;}catch(e){} }
+    if(host) host.classList.remove("hidden");
+    if(typeof renderHistory==="function") renderHistory();
+    if(wrapEl&&wrapEl.scrollIntoView) wrapEl.scrollIntoView({behavior:"smooth",block:"start"});
+  }
   async function consumeFiles(fileList, reason){
     const files=[...(fileList||[])];
     if(!files.length){
-      if(!folderHandle&&$("folderStatus")) $("folderStatus").textContent="Nessun file ricevuto. Riprova «Seleziona cartella» (se OneDrive è solo online, aprila prima in Esplora file).";
-      return;
+      if($("folderStatus")) $("folderStatus").textContent="Nessun file sull'input. Usa il pulsante giallo, scegli la cartella, poi se serve «Carica i file già scelti».";
+      return false;
     }
-    const sig=files.length+":"+files.map(f=>(f.webkitRelativePath||f.name)+":"+f.size+":"+f.lastModified).slice(0,20).join("|");
-    if(sig===lastSig&&folderHandle) return;
-    if(input.dataset.importing==="1") return;
+    const sig=fileSig(files);
+    if(sig===lastSig&&folderHandle&&quotes&&quotes.length){
+      revealHistory();
+      return true;
+    }
+    if(input.dataset.importing==="1") return false;
     input.dataset.importing="1";
     if($("folderStatus")) $("folderStatus").textContent="Lettura cartella in corso… ("+files.length+" file)";
     try{
       await importFirefoxFolder(files);
       lastSig=sig;
+      revealHistory();
+      return true;
     }catch(err){
       if($("folderStatus")) $("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err);
+      return false;
     }finally{
       input.dataset.importing="";
-      // Non cancellare subito: serve al fallback se change non è partito.
-      setTimeout(()=>{ try{ if(input.dataset.importing!=="1") input.value=""; }catch(e){} }, 1500);
     }
   }
-  input.addEventListener("change", e=>consumeFiles(e.target.files, "change"));
-  input.addEventListener("input", e=>consumeFiles(e.target.files, "input"));
-  function armFallback(){
-    if($("folderStatus")) $("folderStatus").textContent="Scegli la cartella nella finestra del browser…";
-    const started=Date.now();
-    const tryConsume=()=>{
-      if(input.files&&input.files.length){
-        consumeFiles(input.files, "fallback");
-        return true;
-      }
-      return false;
-    };
-    const onFocus=()=>{
-      window.removeEventListener("focus", onFocus);
-      setTimeout(()=>{ if(!tryConsume()) setTimeout(tryConsume, 400); }, 150);
-    };
-    window.addEventListener("focus", onFocus);
-    let n=0;
-    const iv=setInterval(()=>{
-      n++;
-      if(tryConsume()||n>24||Date.now()-started>9000){
-        clearInterval(iv);
-        window.removeEventListener("focus", onFocus);
-        if(!(input.files&&input.files.length)&&!folderHandle&&$("folderStatus")&&/Scegli la cartella/.test($("folderStatus").textContent||"")){
-          $("folderStatus").textContent="Nessuna cartella ricevuta. Riprova il pulsante giallo.";
-        }
-      }
-    }, 250);
+  window.__consumeFolderFiles=()=>consumeFiles(input.files,"manual");
+  input.addEventListener("change", e=>{ consumeFiles(e.target.files, "change"); });
+  input.addEventListener("input", e=>{ consumeFiles(e.target.files, "input"); });
+  setInterval(()=>{
+    if(!(input.files&&input.files.length)) return;
+    if(input.dataset.importing==="1") return;
+    if(fileSig(input.files)!==lastSig) consumeFiles(input.files, "watch");
+  }, 400);
+  const arm=()=>{
+    if($("folderStatus")) $("folderStatus").textContent="Scegli la cartella OneDrive… Poi, se lo status non si aggiorna, premi «Carica i file già scelti».";
+  };
+  input.addEventListener("click", arm);
+  if(wrap) wrap.addEventListener("pointerdown", arm);
+  const force=$("loadSelectedFolder");
+  if(force){
+    force.addEventListener("click", async ()=>{
+      const n=input.files?input.files.length:0;
+      if($("folderStatus")) $("folderStatus").textContent=n?("Caricamento di "+n+" file già selezionati…"):"Nessun file selezionato: usa prima il pulsante giallo.";
+      await consumeFiles(input.files, "button");
+    });
   }
-  if(label){
-    label.addEventListener("click", function(){
-      // Permette di riselezionare la stessa cartella
-      try{ if(!input.files||!input.files.length) input.value=""; }catch(e){}
-      armFallback();
-    }, true);
-  }
-  input.addEventListener("click", armFallback);
 })();
 if($("chooseFolderDirect")) $("chooseFolderDirect").addEventListener("click",chooseFolderDirectWrite);
 if($("loadArchive")) $("loadArchive").addEventListener("click",loadArchive);$("calculate").addEventListener("click",calculate);$("clear").addEventListener("click",clearForm);$("shopPick").addEventListener("change",onShopPick);$("saveQuote").addEventListener("click",saveQuote);$("makePdf").addEventListener("click",makePdf);$("showHistory").addEventListener("click",()=>{if(folderHandle)loadArchive();else alert("Seleziona prima la cartella archivio")});$("showTrash").addEventListener("click",()=>{if(!folderHandle){alert("Seleziona prima la cartella archivio");return}$("trash").classList.toggle("hidden");if(!$("trash").classList.contains("hidden"))loadArchive()});$("includeLight").addEventListener("change",()=>{$("lightInputs").classList.toggle("hidden",!$("includeLight").checked)});$("includeGas").addEventListener("change",()=>{$("gasInputs").classList.toggle("hidden",!$("includeGas").checked)});
