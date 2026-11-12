@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="it">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-12T16:16:02.000Z"><meta name="update-url" content="/api/public-index">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-12T20:15:21.000Z"><meta name="update-url" content="/api/public-index">
 <title>Gestionale preventivi energia — Offline</title>
 <style>
 :root{font-family:Arial,Helvetica,sans-serif;color:#292929;background:#fffbea;--fw-yellow:#ffe500;--fw-yellow-deep:#f4d900;--fw-ink:#242424;--fw-muted:#66615a;--fw-border:#eadf83;--fw-pale:#fff8bf}
@@ -875,7 +875,7 @@ if (!firebaseConfigured()) {
 <main>
 <section class="panel" open><h2>1. Archivio sul computer</h2>
 <p class="note">Tocca il giallo e scegli la cartella con i PREV-….json. Se vedi i file al passaggio del mouse ma lo status non cambia, premi «Carica i file già scelti». Lo storico compare sotto (sezione Storico preventivi).</p>
-<div class="actions"><div id="chooseFolder" class="folder-pick-wrap"><span class="folder-pick-face">Seleziona cartella sul computer</span><input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple></div><button type="button" id="loadSelectedFolder" class="secondary">Carica i file già scelti</button><button type="button" id="chooseFolderDirect" class="secondary hidden">Scrivi direttamente nella cartella</button><button type="button" class="secondary" id="loadArchive" disabled>Rileggi la cartella</button></div><div id="buildStamp" class="note" style="margin-top:6px">Build cartella: 2026-11-12T16:16:02.000Z</div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
+<div class="actions"><div id="chooseFolder" class="folder-pick-wrap"><span class="folder-pick-face">Seleziona cartella sul computer</span><input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple></div><button type="button" id="loadSelectedFolder" class="secondary">Carica i file già scelti</button><button type="button" id="chooseFolderDirect" class="secondary hidden">Scrivi direttamente nella cartella</button><button type="button" class="secondary" id="loadArchive" disabled>Rileggi la cartella</button></div><div id="buildStamp" class="note" style="margin-top:6px">Build cartella: 2026-11-12T20:15:21.000Z</div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
 <section class="panel" open><h2>2. Dati del cliente e del negozio</h2><div class="grid">
 <label>Nome e cognome cliente<input id="name" placeholder="Mario Rossi"></label>
 <label>Codice fiscale<input id="fiscalCode" placeholder="RSSMRA85A41F205Z" maxlength="16"></label>
@@ -2844,10 +2844,10 @@ async function downloadLocalHtml(){
       try{html="<!DOCTYPE html>\n"+document.documentElement.outerHTML}catch(e){html=""}
     }
     if(!html.includes('id="promo-catalog"'))throw Error("File non riconosciuto");
-    const boot="<script>window.__OFFLINE_BUNDLE=true;<\/script>";
-    if(html.indexOf("__OFFLINE_BUNDLE")>=0){
-      html=html.replace(/<script>\s*window\.__OFFLINE_BUNDLE\s*=[\s\S]*?;\s*<\/script>/i, boot);
-    }else if(/<head[^>]*>/i.test(html)){
+    const boot="<"+"script>window.__OFFLINE_BUNDLE=true;<"+"/script>";
+    // Rimuovi solo eventuali boot già iniettati in head (match esatto), mai il codice sorgente.
+    html=html.split(boot).join("");
+    if(/<head[^>]*>/i.test(html)){
       html=html.replace(/<head[^>]*>/i, function(m){return m+boot;});
     }else{
       html=boot+html;
