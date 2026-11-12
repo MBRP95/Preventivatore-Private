@@ -14,7 +14,7 @@ label{display:block;font-size:13px;font-weight:700;color:#39352b}input,select{di
 .result{background:#fffdf0;border:1px solid #e4d64d;border-radius:9px;padding:14px;margin-top:14px;overflow-x:auto}
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.kpi{background:#fffdf0;border:1px solid #e8db61;border-radius:8px;padding:12px}.kpi span{display:block;font-size:12px;color:#706b55;margin-bottom:6px}.kpi strong{font-size:20px}
 table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px}th,td{text-align:left;border-bottom:1px solid #eee4a4;padding:8px 7px;white-space:nowrap}th{background:#fff3a1;color:#292929}
-.hidden{display:none!important}button.folder-local-pick{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--fw-ink);border-radius:7px;padding:10px 13px;font-weight:800;cursor:pointer;background:var(--fw-yellow);color:var(--fw-ink)}button.folder-local-pick.hidden{display:none!important}.folder-file-input{position:fixed;left:-10000px;top:0;width:1px;height:1px;opacity:0;overflow:hidden}.checks{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 14px}.checks label{display:flex;align-items:center;gap:7px}.checks input{width:auto;margin:0;accent-color:#d1bd00}
+.hidden{display:none!important}label.folder-pick,button.folder-local-pick{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--fw-ink);border-radius:7px;padding:10px 13px;font-weight:800;cursor:pointer;background:var(--fw-yellow);color:var(--fw-ink);position:relative;overflow:hidden;margin:0}label.folder-pick.hidden,button.folder-local-pick.hidden{display:none!important}label.folder-pick input.folder-file-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0;border:0;padding:0;margin:0}.checks{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 14px}.checks label{display:flex;align-items:center;gap:7px}.checks input{width:auto;margin:0;accent-color:#d1bd00}
 footer{max-width:1100px;margin:0 auto;padding:8px 16px 22px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;font-size:12px;color:#756f58}
 footer .credit{margin-left:auto;text-align:right;font-style:italic;font-size:12px;color:#756f58;white-space:nowrap}
 @media(max-width:700px){.grid,.grid3,.kpis{grid-template-columns:1fr}header{padding:18px}.panel{padding:14px}footer{flex-direction:column;align-items:flex-end}footer .credit{white-space:normal}}
@@ -874,8 +874,8 @@ if (!firebaseConfigured()) {
 <header><h1>Gestionale preventivi energia</h1><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button><button type="button" id="downloadHtml">Scarica HTML per uso locale</button></div></header>
 <main>
 <section class="panel" open><h2>1. Archivio sul computer</h2>
-<p class="note">La cartella può essere quella di OneDrive. Dal sito in Chrome/Edge la scrittura è diretta; dal file scaricato selezioni la cartella in lettura e i nuovi preventivi vengono scaricati come JSON. Su Firefox la funzione è disabilitata.</p>
-<div class="actions"><button type="button" id="chooseFolder">Seleziona cartella sul computer</button><button type="button" id="chooseFolderLocal" class="folder-local-pick hidden">Seleziona cartella sul computer</button><input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple><button type="button" class="secondary" id="loadArchive" disabled>Rileggi la cartella</button></div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
+<p class="note">Tocca il pulsante giallo e scegli la cartella (anche OneDrive). I preventivi vengono letti da lì; quando salvi, il browser scarica i JSON da mettere in dati/preventivi. Su Chrome/Edge dal sito puoi anche usare «Scrivi direttamente nella cartella». Su Firefox la funzione è disabilitata.</p>
+<div class="actions"><label id="chooseFolder" class="folder-pick">Seleziona cartella sul computer<input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple></label><button type="button" id="chooseFolderDirect" class="secondary hidden">Scrivi direttamente nella cartella</button><button type="button" class="secondary" id="loadArchive" disabled>Rileggi la cartella</button></div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
 <section class="panel" open><h2>2. Dati del cliente e del negozio</h2><div class="grid">
 <label>Nome e cognome cliente<input id="name" placeholder="Mario Rossi"></label>
 <label>Codice fiscale<input id="fiscalCode" placeholder="RSSMRA85A41F205Z" maxlength="16"></label>
@@ -1590,7 +1590,7 @@ async function importFirefoxFolder(fileList){
     $("folderStatus").textContent="Funzione disabilitata per Firefox. Usa Chrome o Edge.";
     return;
   }
-  const ephemeral=!!(isLocalOfflineFile()||!window.isSecureContext||typeof window.showDirectoryPicker!=="function");
+  const ephemeral=true;
   const files=[...fileList];
   if(!files.length){
     if(!folderHandle) $("folderStatus").textContent="Nessuna cartella selezionata. Puoi comunque fare calcoli e stampare il PDF.";
@@ -1673,51 +1673,41 @@ function downloadTextFile(name, text){
   a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),1500);
 }
-async function chooseFolder(){
+async function chooseFolderDirectWrite(){
   const blocked=archiveFolderBlockedReason();
   if(blocked){
-    $("folderStatus").textContent=blocked;
+    if($("folderStatus")) $("folderStatus").textContent=blocked;
     return;
   }
-  // Sul file locale preferisci sempre l'input directory (label): showDirectoryPicker
-  // può risultare presente ma non aprire nulla fuori da https.
-  if(isLocalOfflineFile()){
-    const btn=$("chooseFolder");
-    const localBtn=$("chooseFolderLocal");
-    if(btn) btn.classList.add("hidden");
-    if(localBtn) localBtn.classList.remove("hidden");
-    if($("folderStatus")) $("folderStatus").textContent="Tocca il pulsante giallo «Seleziona cartella sul computer» e scegli la cartella OneDrive.";
+  if(!canUseDirectoryPicker()){
+    if($("folderStatus")) $("folderStatus").textContent="Scrittura diretta disponibile solo dal sito in Chrome o Edge.";
     return;
   }
-  if(canUseDirectoryPicker()){
-    try{
-      folderHandle=await window.showDirectoryPicker({mode:"readwrite"});
-      if(await folderHandle.requestPermission({mode:"readwrite"})!=="granted")throw Error("Permesso di scrittura non concesso");
-      for(const d of ["dati","documenti"])await ensureDir(folderHandle,d);
-      $("folderStatus").textContent="Cartella selezionata: "+folderHandle.name+". Ogni preventivo è un file numerato dentro questa cartella. Può essere la cartella di OneDrive.";
-      enableArchiveButtons();
-      await loadArchive();
-    }catch(e){
-      if(e&&e.name==="AbortError"){
-        $("folderStatus").textContent="Selezione cartella annullata.";
-        return;
-      }
-      $("folderStatus").textContent="Cartella non selezionata o accesso negato: "+(e&&e.message?e.message:e);
+  if($("folderStatus")) $("folderStatus").textContent="Apertura selezione cartella per scrittura diretta…";
+  try{
+    folderHandle=await window.showDirectoryPicker({mode:"readwrite"});
+    if(await folderHandle.requestPermission({mode:"readwrite"})!=="granted")throw Error("Permesso di scrittura non concesso");
+    for(const d of ["dati","documenti"])await ensureDir(folderHandle,d);
+    if($("folderStatus")) $("folderStatus").textContent="Cartella selezionata: "+folderHandle.name+". I preventivi vengono scritti direttamente qui (anche OneDrive).";
+    enableArchiveButtons();
+    await loadArchive();
+  }catch(e){
+    if(e&&e.name==="AbortError"){
+      if($("folderStatus")) $("folderStatus").textContent="Scrittura diretta annullata. Puoi comunque usare «Seleziona cartella sul computer» e i download JSON.";
+      return;
     }
-    return;
+    if($("folderStatus")) $("folderStatus").textContent="Scrittura diretta non disponibile: "+(e&&e.message?e.message:e)+". Usa il pulsante giallo e i file JSON scaricati.";
   }
-  // file://: il click programmatico su input hidden viene ignorato da molti browser.
-  // Mostra la label nativa (input a tutto il pulsante) e chiedi un altro tap se serve.
-  const btn=$("chooseFolder");
-  const localLabel=$("chooseFolderLocal");
+}
+async function chooseFolder(){
+  // Retrocompatibilità: il pulsante giallo è una label nativa sull'input directory.
   const input=$("folderPickerFallback");
-  if(localLabel) localLabel.classList.remove("hidden");
-  if(btn) btn.classList.add("hidden");
-  if($("folderStatus")) $("folderStatus").textContent="Tocca di nuovo «Seleziona cartella sul computer» e scegli la cartella OneDrive.";
+  if($("folderStatus")) $("folderStatus").textContent="Scegli la cartella OneDrive nella finestra del browser…";
   if(input){
     try{input.value="";}catch(e){}
-    // tentativo immediato (desktop); su mobile conta la label.
-    try{input.click();}catch(e){}
+    try{input.click();}catch(e){
+      if($("folderStatus")) $("folderStatus").textContent="Impossibile aprire la scelta cartella: "+(e&&e.message?e.message:e);
+    }
   }
 }
 async function readJsonFiles(dir){const arr=[];for await(const [name,h] of dir.entries())if(h.kind==="file"&&name.endsWith(".json")){try{arr.push({name,data:JSON.parse(await(await h.getFile()).text())})}catch(e){}}return arr}
@@ -2872,21 +2862,8 @@ if($("downloadHtml")) $("downloadHtml").addEventListener("click",downloadLocalHt
   const offline=!!(window.__OFFLINE_BUNDLE||(window.isOfflineBundle&&window.isOfflineBundle())||location.protocol==="file:"||location.protocol==="content:");
   if(offline) btn.classList.add("hidden");
 })();
-if($("chooseFolder")) $("chooseFolder").addEventListener("click",chooseFolder);if($("folderPickerFallback")) $("folderPickerFallback").addEventListener("change",async e=>{const files=[...(e.target.files||[])];e.target.value="";try{await importFirefoxFolder(files)}catch(err){if($("folderStatus")) $("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err)}});
-if($("chooseFolderLocal")&&!$("chooseFolderLocal").dataset.bound){
-  $("chooseFolderLocal").dataset.bound="1";
-  $("chooseFolderLocal").addEventListener("click",function(){
-    const input=$("folderPickerFallback");
-    if(!input){
-      if($("folderStatus")) $("folderStatus").textContent="Selezione cartella non disponibile in questo file.";
-      return;
-    }
-    try{input.value="";}catch(e){}
-    try{input.click();}catch(e){
-      if($("folderStatus")) $("folderStatus").textContent="Impossibile aprire la scelta cartella: "+(e&&e.message?e.message:e);
-    }
-  });
-}
+if($("folderPickerFallback")) $("folderPickerFallback").addEventListener("change",async e=>{const files=[...(e.target.files||[])];e.target.value="";try{await importFirefoxFolder(files)}catch(err){if($("folderStatus")) $("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err)}});
+if($("chooseFolderDirect")) $("chooseFolderDirect").addEventListener("click",chooseFolderDirectWrite);
 if($("loadArchive")) $("loadArchive").addEventListener("click",loadArchive);$("calculate").addEventListener("click",calculate);$("clear").addEventListener("click",clearForm);$("shopPick").addEventListener("change",onShopPick);$("saveQuote").addEventListener("click",saveQuote);$("makePdf").addEventListener("click",makePdf);$("showHistory").addEventListener("click",()=>{if(folderHandle)loadArchive();else alert("Seleziona prima la cartella archivio")});$("showTrash").addEventListener("click",()=>{if(!folderHandle){alert("Seleziona prima la cartella archivio");return}$("trash").classList.toggle("hidden");if(!$("trash").classList.contains("hidden"))loadArchive()});$("includeLight").addEventListener("change",()=>{$("lightInputs").classList.toggle("hidden",!$("includeLight").checked)});$("includeGas").addEventListener("change",()=>{$("gasInputs").classList.toggle("hidden",!$("includeGas").checked)});
 $("lightCompare").addEventListener("change",()=>flatToggleCompare(true));
 $("gasCompare").addEventListener("change",()=>flatToggleCompare(true));
@@ -2921,28 +2898,34 @@ renderCommodityRateTables();
 fxToggleBoxes();
 setToolMode("mix");
 (function initArchiveFolderUi(){
+  const pick=$("chooseFolder");
+  const direct=$("chooseFolderDirect");
+  const probe=document.createElement("input");
+  probe.type="file";
+  const dirSupported=("webkitdirectory" in probe);
+  if(!dirSupported){
+    if(pick) pick.classList.add("hidden");
+    if(direct) direct.classList.add("hidden");
+    if($("folderStatus")) $("folderStatus").textContent="Questo browser non può selezionare una cartella. Usa Chrome o Edge su computer.";
+    if($("loadArchive")) $("loadArchive").disabled=true;
+    return;
+  }
   if(typeof isLocalOfflineFile==="function"&&isLocalOfflineFile()){
-    const btn=$("chooseFolder");
-    const localLabel=$("chooseFolderLocal");
-    const probe=document.createElement("input");
-    probe.type="file";
-    const dirSupported=("webkitdirectory" in probe);
-    if(btn) btn.classList.add("hidden");
-    if(!dirSupported){
-      if(localLabel) localLabel.classList.add("hidden");
-      if($("folderStatus")) $("folderStatus").textContent="Su questo dispositivo il file locale non può aprire una cartella. Usa il sito in Chrome/Edge su computer per OneDrive; qui restano calcoli e PDF.";
-      return;
-    }
-    if(localLabel) localLabel.classList.remove("hidden");
+    if(direct) direct.classList.add("hidden");
     if($("folderStatus")) $("folderStatus").textContent="File locale: tocca «Seleziona cartella sul computer» e scegli la cartella OneDrive. I nuovi salvataggi scaricano i JSON da spostare in dati/preventivi.";
     return;
   }
   const blocked=typeof archiveFolderBlockedReason==="function"?archiveFolderBlockedReason():"";
-  if(!blocked) return;
-  if($("folderStatus")) $("folderStatus").textContent=blocked;
-  if($("chooseFolder")) $("chooseFolder").disabled=true;
-  if($("chooseFolderLocal")) $("chooseFolderLocal").classList.add("hidden");
-  if($("loadArchive")) $("loadArchive").disabled=true;
+  if(blocked){
+    if($("folderStatus")) $("folderStatus").textContent=blocked;
+    if(pick) pick.classList.add("hidden");
+    if(direct) direct.classList.add("hidden");
+    if($("loadArchive")) $("loadArchive").disabled=true;
+    return;
+  }
+  if(direct&&typeof canUseDirectoryPicker==="function"&&canUseDirectoryPicker()){
+    direct.classList.remove("hidden");
+  }
 })();
 
 })();
