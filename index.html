@@ -874,7 +874,7 @@ if (!firebaseConfigured()) {
 <header><h1>Gestionale preventivi energia</h1><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button><button type="button" id="downloadHtml">Scarica HTML per uso locale</button></div></header>
 <main>
 <section class="panel" open><h2>1. Archivio sul computer</h2>
-<p class="note">La cartella può essere quella di OneDrive. Su Firefox la funzione archivio è disabilitata: usa Chrome o Edge.</p>
+<p class="note">La cartella può essere quella di OneDrive (solo dal sito in Chrome o Edge). Su Firefox e nel file scaricato la selezione cartella non è disponibile.</p>
 <div class="actions"><button id="chooseFolder">Seleziona cartella sul computer</button><button class="secondary" id="loadArchive" disabled>Rileggi la cartella</button><input id="folderPickerFallback" type="file" class="hidden" webkitdirectory multiple></div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
 <section class="panel" open><h2>2. Dati del cliente e del negozio</h2><div class="grid">
 <label>Nome e cognome cliente<input id="name" placeholder="Mario Rossi"></label>
@@ -1605,21 +1605,38 @@ async function restoreFirefoxArchive(){
     $("folderStatus").textContent="Archivio del browser non riaperto.";
   }
 }
+function archiveFolderBlockedReason(){
+  if(window.__OFFLINE_BUNDLE||location.protocol==="file:"||location.protocol==="content:"||(window.isOfflineBundle&&window.isOfflineBundle())){
+    return "Dal file scaricato il browser non permette di collegare una cartella (OneDrive). Apri il sito in Chrome o Edge per salvare i preventivi; qui puoi comunque calcolare e scaricare il PDF.";
+  }
+  if(!window.isSecureContext){
+    return "Selezione cartella disponibile solo da una pagina sicura (sito https).";
+  }
+  if(typeof window.showDirectoryPicker!=="function"){
+    return "Funzione disabilitata per Firefox. Per salvare i preventivi usa Chrome o Edge e seleziona una cartella sul computer (anche OneDrive).";
+  }
+  return "";
+}
 async function chooseFolder(){
-  if("showDirectoryPicker"in window){
-    try{
-      folderHandle=await window.showDirectoryPicker({mode:"readwrite"});
-      if(await folderHandle.requestPermission({mode:"readwrite"})!=="granted")throw Error("Permesso di scrittura non concesso");
-      for(const d of ["dati","documenti"])await ensureDir(folderHandle,d);
-      $("folderStatus").textContent="Cartella selezionata: "+folderHandle.name+". Ogni preventivo è un file numerato dentro questa cartella. Può essere la cartella di OneDrive.";
-      enableArchiveButtons();
-      await loadArchive();
-    }catch(e){
-      $("folderStatus").textContent="Cartella non selezionata o accesso negato: "+(e&&e.message?e.message:e);
-    }
+  const blocked=archiveFolderBlockedReason();
+  if(blocked){
+    $("folderStatus").textContent=blocked;
     return;
   }
-  $("folderStatus").textContent="Funzione disabilitata per Firefox. Per salvare i preventivi usa Chrome o Edge e seleziona una cartella sul computer (anche OneDrive).";
+  try{
+    folderHandle=await window.showDirectoryPicker({mode:"readwrite"});
+    if(await folderHandle.requestPermission({mode:"readwrite"})!=="granted")throw Error("Permesso di scrittura non concesso");
+    for(const d of ["dati","documenti"])await ensureDir(folderHandle,d);
+    $("folderStatus").textContent="Cartella selezionata: "+folderHandle.name+". Ogni preventivo è un file numerato dentro questa cartella. Può essere la cartella di OneDrive.";
+    enableArchiveButtons();
+    await loadArchive();
+  }catch(e){
+    if(e&&e.name==="AbortError"){
+      $("folderStatus").textContent="Selezione cartella annullata.";
+      return;
+    }
+    $("folderStatus").textContent="Cartella non selezionata o accesso negato: "+(e&&e.message?e.message:e);
+  }
 }
 async function readJsonFiles(dir){const arr=[];for await(const [name,h] of dir.entries())if(h.kind==="file"&&name.endsWith(".json")){try{arr.push({name,data:JSON.parse(await(await h.getFile()).text())})}catch(e){}}return arr}
 function normalizeQuote(q){
@@ -2798,11 +2815,17 @@ fxFillOfferSelects();
 renderCommodityRateTables();
 fxToggleBoxes();
 setToolMode("mix");
-if(!("showDirectoryPicker"in window)){
-  $("folderStatus").textContent="Funzione disabilitata per Firefox. Per salvare i preventivi usa Chrome o Edge con una cartella sul computer (anche OneDrive).";
-  if($("chooseFolder")) $("chooseFolder").disabled=true;
-  if($("loadArchive")) $("loadArchive").disabled=true;
-}
+(function initArchiveFolderUi(){
+  const blocked=typeof archiveFolderBlockedReason==="function"?archiveFolderBlockedReason():"";
+  if(!blocked) return;
+  if($("folderStatus")) $("folderStatus").textContent=blocked;
+  // Su file locale il tasto resta cliccabile e spiega il limite; su Firefox senza API si disabilita.
+  const isLocalFile=!!(window.__OFFLINE_BUNDLE||location.protocol==="file:"||location.protocol==="content:"||(window.isOfflineBundle&&window.isOfflineBundle()));
+  if(!isLocalFile){
+    if($("chooseFolder")) $("chooseFolder").disabled=true;
+    if($("loadArchive")) $("loadArchive").disabled=true;
+  }
+})();
 
 })();
 </script>
