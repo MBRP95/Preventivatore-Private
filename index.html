@@ -14,7 +14,7 @@ label{display:block;font-size:13px;font-weight:700;color:#39352b}input,select{di
 .result{background:#fffdf0;border:1px solid #e4d64d;border-radius:9px;padding:14px;margin-top:14px;overflow-x:auto}
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.kpi{background:#fffdf0;border:1px solid #e8db61;border-radius:8px;padding:12px}.kpi span{display:block;font-size:12px;color:#706b55;margin-bottom:6px}.kpi strong{font-size:20px}
 table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px}th,td{text-align:left;border-bottom:1px solid #eee4a4;padding:8px 7px;white-space:nowrap}th{background:#fff3a1;color:#292929}
-.hidden{display:none!important}label.folder-local-pick{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--fw-ink);border-radius:7px;padding:10px 13px;font-weight:800;cursor:pointer;background:var(--fw-yellow);color:var(--fw-ink);position:relative;overflow:hidden}label.folder-local-pick input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0;width:100%;height:100%}label.folder-local-pick.hidden{display:none!important}.checks{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 14px}.checks label{display:flex;align-items:center;gap:7px}.checks input{width:auto;margin:0;accent-color:#d1bd00}
+.hidden{display:none!important}button.folder-local-pick{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--fw-ink);border-radius:7px;padding:10px 13px;font-weight:800;cursor:pointer;background:var(--fw-yellow);color:var(--fw-ink)}button.folder-local-pick.hidden{display:none!important}.folder-file-input{position:fixed;left:-10000px;top:0;width:1px;height:1px;opacity:0;overflow:hidden}.checks{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0 14px}.checks label{display:flex;align-items:center;gap:7px}.checks input{width:auto;margin:0;accent-color:#d1bd00}
 footer{max-width:1100px;margin:0 auto;padding:8px 16px 22px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;font-size:12px;color:#756f58}
 footer .credit{margin-left:auto;text-align:right;font-style:italic;font-size:12px;color:#756f58;white-space:nowrap}
 @media(max-width:700px){.grid,.grid3,.kpis{grid-template-columns:1fr}header{padding:18px}.panel{padding:14px}footer{flex-direction:column;align-items:flex-end}footer .credit{white-space:normal}}
@@ -875,7 +875,7 @@ if (!firebaseConfigured()) {
 <main>
 <section class="panel" open><h2>1. Archivio sul computer</h2>
 <p class="note">La cartella può essere quella di OneDrive. Dal sito in Chrome/Edge la scrittura è diretta; dal file scaricato selezioni la cartella in lettura e i nuovi preventivi vengono scaricati come JSON. Su Firefox la funzione è disabilitata.</p>
-<div class="actions"><button type="button" id="chooseFolder">Seleziona cartella sul computer</button><label id="chooseFolderLocal" class="folder-local-pick hidden">Seleziona cartella sul computer<input id="folderPickerFallback" type="file" webkitdirectory directory multiple></label><button type="button" class="secondary" id="loadArchive" disabled>Rileggi la cartella</button></div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
+<div class="actions"><button type="button" id="chooseFolder">Seleziona cartella sul computer</button><button type="button" id="chooseFolderLocal" class="folder-local-pick hidden">Seleziona cartella sul computer</button><input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple><button type="button" class="secondary" id="loadArchive" disabled>Rileggi la cartella</button></div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
 <section class="panel" open><h2>2. Dati del cliente e del negozio</h2><div class="grid">
 <label>Nome e cognome cliente<input id="name" placeholder="Mario Rossi"></label>
 <label>Codice fiscale<input id="fiscalCode" placeholder="RSSMRA85A41F205Z" maxlength="16"></label>
@@ -1654,7 +1654,7 @@ function isLocalOfflineFile(){
   return !!(window.__OFFLINE_BUNDLE||location.protocol==="file:"||location.protocol==="content:"||(window.isOfflineBundle&&window.isOfflineBundle()));
 }
 function canUseDirectoryPicker(){
-  return !!(window.isSecureContext&&typeof window.showDirectoryPicker==="function");
+  return !!(window.isSecureContext&&typeof window.showDirectoryPicker==="function"&&location.protocol!=="file:"&&location.protocol!=="content:");
 }
 function archiveFolderBlockedReason(){
   // Blocco solo Firefox (o browser senza API) sul sito https.
@@ -1677,6 +1677,16 @@ async function chooseFolder(){
   const blocked=archiveFolderBlockedReason();
   if(blocked){
     $("folderStatus").textContent=blocked;
+    return;
+  }
+  // Sul file locale preferisci sempre l'input directory (label): showDirectoryPicker
+  // può risultare presente ma non aprire nulla fuori da https.
+  if(isLocalOfflineFile()){
+    const btn=$("chooseFolder");
+    const localBtn=$("chooseFolderLocal");
+    if(btn) btn.classList.add("hidden");
+    if(localBtn) localBtn.classList.remove("hidden");
+    if($("folderStatus")) $("folderStatus").textContent="Tocca il pulsante giallo «Seleziona cartella sul computer» e scegli la cartella OneDrive.";
     return;
   }
   if(canUseDirectoryPicker()){
@@ -2833,7 +2843,15 @@ async function downloadLocalHtml(){
     }else{
       html=boot+html;
     }
-    html=html.replace(/<button[^>]*id="downloadHtml"[^>]*>[\s\S]*?<\/button>/i, "");
+    html=html.replace(/<button([^>]*id=["']downloadHtml["'])([^>]*)>/i, function(m, a, b){
+      const all=a+b;
+      if(/class\s*=\s*"/i.test(all)) return m.replace(/class\s*=\s*"/i, 'class="hidden ');
+      if(/class\s*=\s*'/i.test(all)) return m.replace(/class\s*=\s*'/i, "class='hidden ");
+      return "<button"+a+' class="hidden"'+b+">";
+    });
+    if(!/id=["']downloadHtml["'][^>]*\bhidden\b/i.test(html) && !/<button[^>]*id=["']downloadHtml["'][^>]*class=["'][^"']*\bhidden\b/i.test(html)){
+      html=html.replace(/(<button[^>]*id=["']downloadHtml["'][^>]*)(>)/i, '$1 class="hidden"$2');
+    }
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"}));
     a.download="PreventivatoreStore.html";
@@ -2847,14 +2865,29 @@ async function downloadLocalHtml(){
     btn.disabled=false;
   }
 }
-$("downloadHtml").addEventListener("click",downloadLocalHtml);
+if($("downloadHtml")) $("downloadHtml").addEventListener("click",downloadLocalHtml);
 (function hideDownloadWhenOffline(){
   const btn=$("downloadHtml");
   if(!btn) return;
   const offline=!!(window.__OFFLINE_BUNDLE||(window.isOfflineBundle&&window.isOfflineBundle())||location.protocol==="file:"||location.protocol==="content:");
   if(offline) btn.classList.add("hidden");
 })();
-$("chooseFolder").addEventListener("click",chooseFolder);$("folderPickerFallback").addEventListener("change",async e=>{const files=[...(e.target.files||[])];e.target.value="";try{await importFirefoxFolder(files)}catch(err){$("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err)}});$("loadArchive").addEventListener("click",loadArchive);$("calculate").addEventListener("click",calculate);$("clear").addEventListener("click",clearForm);$("shopPick").addEventListener("change",onShopPick);$("saveQuote").addEventListener("click",saveQuote);$("makePdf").addEventListener("click",makePdf);$("showHistory").addEventListener("click",()=>{if(folderHandle)loadArchive();else alert("Seleziona prima la cartella archivio")});$("showTrash").addEventListener("click",()=>{if(!folderHandle){alert("Seleziona prima la cartella archivio");return}$("trash").classList.toggle("hidden");if(!$("trash").classList.contains("hidden"))loadArchive()});$("includeLight").addEventListener("change",()=>{$("lightInputs").classList.toggle("hidden",!$("includeLight").checked)});$("includeGas").addEventListener("change",()=>{$("gasInputs").classList.toggle("hidden",!$("includeGas").checked)});
+if($("chooseFolder")) $("chooseFolder").addEventListener("click",chooseFolder);if($("folderPickerFallback")) $("folderPickerFallback").addEventListener("change",async e=>{const files=[...(e.target.files||[])];e.target.value="";try{await importFirefoxFolder(files)}catch(err){if($("folderStatus")) $("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err)}});
+if($("chooseFolderLocal")&&!$("chooseFolderLocal").dataset.bound){
+  $("chooseFolderLocal").dataset.bound="1";
+  $("chooseFolderLocal").addEventListener("click",function(){
+    const input=$("folderPickerFallback");
+    if(!input){
+      if($("folderStatus")) $("folderStatus").textContent="Selezione cartella non disponibile in questo file.";
+      return;
+    }
+    try{input.value="";}catch(e){}
+    try{input.click();}catch(e){
+      if($("folderStatus")) $("folderStatus").textContent="Impossibile aprire la scelta cartella: "+(e&&e.message?e.message:e);
+    }
+  });
+}
+if($("loadArchive")) $("loadArchive").addEventListener("click",loadArchive);$("calculate").addEventListener("click",calculate);$("clear").addEventListener("click",clearForm);$("shopPick").addEventListener("change",onShopPick);$("saveQuote").addEventListener("click",saveQuote);$("makePdf").addEventListener("click",makePdf);$("showHistory").addEventListener("click",()=>{if(folderHandle)loadArchive();else alert("Seleziona prima la cartella archivio")});$("showTrash").addEventListener("click",()=>{if(!folderHandle){alert("Seleziona prima la cartella archivio");return}$("trash").classList.toggle("hidden");if(!$("trash").classList.contains("hidden"))loadArchive()});$("includeLight").addEventListener("change",()=>{$("lightInputs").classList.toggle("hidden",!$("includeLight").checked)});$("includeGas").addEventListener("change",()=>{$("gasInputs").classList.toggle("hidden",!$("includeGas").checked)});
 $("lightCompare").addEventListener("change",()=>flatToggleCompare(true));
 $("gasCompare").addEventListener("change",()=>flatToggleCompare(true));
 function renderFlatPriceTables(){const row=(p,unit)=>`<tr><td>${escapeHtml(p.name)}</td><td>${num(p.plafond)} ${unit}</td><td>${money(p.monthly)}</td><td>${money(p.annual)}</td><td>${money(p.price)}</td><td>${money(p.convergence||0)}</td></tr>`;$("lightPriceTable").innerHTML=LIGHT_PROMOS.map(p=>row(p,"kWh")).join("");$("gasPriceTable").innerHTML=GAS_PROMOS.map(p=>row(p,"Smc")).join("");const note=$("flatExpiryNote");if(note){const label=promoExpiryLabel(FLAT_EXPIRES||(LIGHT_PROMOS[0]&&LIGHT_PROMOS[0].expires));note.textContent=label?"Scadenza promo Flat: "+label:""}}
