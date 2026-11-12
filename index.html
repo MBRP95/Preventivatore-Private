@@ -1632,9 +1632,11 @@ async function importFirefoxFolder(fileList){
   if(!store||store.name!==folderName) store={name:folderName,files:{},dirs:new Set(),hint:""};
   else store.hint="";
   store.ephemeral=ephemeral;
-  let imported=0;
+  let imported=0, badJson=0;
   for(const item of accepted){
-    const text=await item.file.text();
+    let text=await item.file.text();
+    if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+    try{ JSON.parse(text); }catch(e){ badJson++; continue; }
     const mtime=Number(item.file.lastModified)||Date.now();
     const prev=store.files[item.arch];
     if(!prev||mtime>=(prev.mtime||0)){
@@ -1654,6 +1656,7 @@ async function importFirefoxFolder(fileList){
   const skipped=Math.max(0, files.filter(f=>/\.json$/i.test(relPathOf(f))).length-accepted.length);
   let msg="Cartella \""+folderName+"\" selezionata. Preventivi caricati: "+(quotes&&quotes.length||0)+" (file letti: "+imported+").";
   if(skipped) msg+=" Ignorati "+skipped+" JSON non di archivio.";
+  if(badJson) msg+=" "+badJson+" JSON non leggibili.";
   if(ephemeral) msg+=" Quando salvi, il browser scarica i JSON: mettili nella cartella dei preventivi.";
   if($("folderStatus")) $("folderStatus").textContent=msg;
 }
@@ -1733,7 +1736,7 @@ async function chooseFolder(){
     }
   }
 }
-async function readJsonFiles(dir){const arr=[];for await(const [name,h] of dir.entries())if(h.kind==="file"&&name.endsWith(".json")){try{arr.push({name,data:JSON.parse(await(await h.getFile()).text())})}catch(e){}}return arr}
+async function readJsonFiles(dir){const arr=[];for await(const [name,h] of dir.entries())if(h.kind==="file"&&name.endsWith(".json")){try{let text=await(await h.getFile()).text();if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);arr.push({name,data:JSON.parse(text)})}catch(e){}}return arr}
 function normalizeQuote(q){
  if(q.sections)return q;
  if(q.promo&&q.calculations&&q.customer){
@@ -2885,17 +2888,72 @@ if($("downloadHtml")) $("downloadHtml").addEventListener("click",downloadLocalHt
   const offline=!!(window.__OFFLINE_BUNDLE||(window.isOfflineBundle&&window.isOfflineBundle())||location.protocol==="file:"||location.protocol==="content:");
   if(offline) btn.classList.add("hidden");
 })();
-if($("folderPickerFallback")) $("folderPickerFallback").addEventListener("change",async e=>{
-  const files=[...(e.target.files||[])];
-  if($("folderStatus")) $("folderStatus").textContent="Lettura cartella in corso… ("+files.length+" file)";
-  try{
-    await importFirefoxFolder(files);
-  }catch(err){
-    if($("folderStatus")) $("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err);
-  }finally{
-    try{e.target.value="";}catch(err){}
+(function wireFolderPicker(){
+  const input=$("folderPickerFallback");
+  const label=$("chooseFolder");
+  if(!input||input.dataset.wired==="1") return;
+  input.dataset.wired="1";
+  let lastSig="";
+  async function consumeFiles(fileList, reason){
+    const files=[...(fileList||[])];
+    if(!files.length){
+      if(!folderHandle&&$("folderStatus")) $("folderStatus").textContent="Nessun file ricevuto. Riprova «Seleziona cartella» (se OneDrive è solo online, aprila prima in Esplora file).";
+      return;
+    }
+    const sig=files.length+":"+files.map(f=>(f.webkitRelativePath||f.name)+":"+f.size+":"+f.lastModified).slice(0,20).join("|");
+    if(sig===lastSig&&folderHandle) return;
+    if(input.dataset.importing==="1") return;
+    input.dataset.importing="1";
+    if($("folderStatus")) $("folderStatus").textContent="Lettura cartella in corso… ("+files.length+" file)";
+    try{
+      await importFirefoxFolder(files);
+      lastSig=sig;
+    }catch(err){
+      if($("folderStatus")) $("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err);
+    }finally{
+      input.dataset.importing="";
+      // Non cancellare subito: serve al fallback se change non è partito.
+      setTimeout(()=>{ try{ if(input.dataset.importing!=="1") input.value=""; }catch(e){} }, 1500);
+    }
   }
-});
+  input.addEventListener("change", e=>consumeFiles(e.target.files, "change"));
+  input.addEventListener("input", e=>consumeFiles(e.target.files, "input"));
+  function armFallback(){
+    if($("folderStatus")) $("folderStatus").textContent="Scegli la cartella nella finestra del browser…";
+    const started=Date.now();
+    const tryConsume=()=>{
+      if(input.files&&input.files.length){
+        consumeFiles(input.files, "fallback");
+        return true;
+      }
+      return false;
+    };
+    const onFocus=()=>{
+      window.removeEventListener("focus", onFocus);
+      setTimeout(()=>{ if(!tryConsume()) setTimeout(tryConsume, 400); }, 150);
+    };
+    window.addEventListener("focus", onFocus);
+    let n=0;
+    const iv=setInterval(()=>{
+      n++;
+      if(tryConsume()||n>24||Date.now()-started>9000){
+        clearInterval(iv);
+        window.removeEventListener("focus", onFocus);
+        if(!(input.files&&input.files.length)&&!folderHandle&&$("folderStatus")&&/Scegli la cartella/.test($("folderStatus").textContent||"")){
+          $("folderStatus").textContent="Nessuna cartella ricevuta. Riprova il pulsante giallo.";
+        }
+      }
+    }, 250);
+  }
+  if(label){
+    label.addEventListener("click", function(){
+      // Permette di riselezionare la stessa cartella
+      try{ if(!input.files||!input.files.length) input.value=""; }catch(e){}
+      armFallback();
+    }, true);
+  }
+  input.addEventListener("click", armFallback);
+})();
 if($("chooseFolderDirect")) $("chooseFolderDirect").addEventListener("click",chooseFolderDirectWrite);
 if($("loadArchive")) $("loadArchive").addEventListener("click",loadArchive);$("calculate").addEventListener("click",calculate);$("clear").addEventListener("click",clearForm);$("shopPick").addEventListener("change",onShopPick);$("saveQuote").addEventListener("click",saveQuote);$("makePdf").addEventListener("click",makePdf);$("showHistory").addEventListener("click",()=>{if(folderHandle)loadArchive();else alert("Seleziona prima la cartella archivio")});$("showTrash").addEventListener("click",()=>{if(!folderHandle){alert("Seleziona prima la cartella archivio");return}$("trash").classList.toggle("hidden");if(!$("trash").classList.contains("hidden"))loadArchive()});$("includeLight").addEventListener("change",()=>{$("lightInputs").classList.toggle("hidden",!$("includeLight").checked)});$("includeGas").addEventListener("change",()=>{$("gasInputs").classList.toggle("hidden",!$("includeGas").checked)});
 $("lightCompare").addEventListener("change",()=>flatToggleCompare(true));
