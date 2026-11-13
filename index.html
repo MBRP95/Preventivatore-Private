@@ -3270,9 +3270,9 @@ body.fit-result #step .nav button{flex:1;height:28px;padding:0 8px;font-size:13p
 body.fit-flyers{display:flex;flex-direction:column;height:100dvh;overflow:hidden;background:#FFD000}
 body.fit-flyers header,body.fit-flyers footer{display:none}
 body.fit-flyers main{flex:1;min-height:0;min-width:0;width:100%;max-width:none;margin:0;padding:0;display:flex;align-self:stretch}
-body.fit-flyers #step{flex:1;min-width:0;width:100%;min-height:0;margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent;display:flex;align-self:stretch}
-.flyer-fit{flex:1 1 auto;min-width:0;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.flyer-slot{position:relative;flex:none;margin:auto}
+body.fit-flyers #step{flex:1;min-width:0;width:100%;min-height:0;margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent;display:flex;align-self:stretch};max-width:none;position:relative
+.flyer-fit{position:fixed;inset:0;z-index:1;min-width:0;min-height:0;width:auto;height:auto;display:flex;align-items:center;justify-content:center;overflow:hidden;pointer-events:auto}
+.flyer-slot{position:relative;flex:none;margin:0}
 .flyer-page{position:absolute;left:0;top:0}
 .flyer-page img{display:block;width:100%;height:100%}
 .flyer-cta{position:absolute;z-index:3;border:4px solid #111;background:#111;color:#FFD000;font:900 28px/1 Arial,Helvetica,sans-serif;letter-spacing:-.3px;border-radius:999px;padding:14px 16px 14px 20px;cursor:pointer;white-space:nowrap;box-shadow:0 0 0 5px #fff,0 0 0 9px #111;animation:flyer-cta-pulse 1.25s ease-in-out infinite}
