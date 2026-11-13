@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="it">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-13T10:41:09.000Z"><meta name="update-url" content="/api/public-index">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-13T11:16:41.000Z"><meta name="update-url" content="/api/public-index">
 <title>Gestionale preventivi energia — Offline</title>
 <style>
 :root{font-family:Arial,Helvetica,sans-serif;color:#292929;background:#fffbea;--fw-yellow:#ffe500;--fw-yellow-deep:#f4d900;--fw-ink:#242424;--fw-muted:#66615a;--fw-border:#eadf83;--fw-pale:#fff8bf}
@@ -866,7 +866,7 @@ if (!firebaseConfigured()) {
     csrf="";
   };
   if(location.protocol!=="file:"&&navigator.serviceWorker){
-    navigator.serviceWorker.register(new URL("sw.js", location.href).href).catch(function(){});
+    navigator.serviceWorker.register(new URL("sw.js?v=3", location.href).href).then(function(reg){try{reg.update()}catch(e){}}).catch(function(){});
   }
 })();
 </script>
@@ -1731,23 +1731,31 @@ async function chooseFolderDirectWrite(){
     alert(blocked);
     return false;
   }
-  if(!canUseDirectoryPicker()){
+  if(typeof window.showDirectoryPicker!=="function"){
     return false;
   }
   try{
-    folderHandle=await window.showDirectoryPicker({mode:"readwrite"});
-    if(await folderHandle.requestPermission({mode:"readwrite"})!=="granted")throw Error("Permesso di scrittura non concesso");
+    const handle=await window.showDirectoryPicker({mode:"readwrite"});
+    folderHandle=handle;
+    setArchiveFolderLabel(handle&&handle.name); // subito, come PreventivatoreStore
+    try{
+      if(handle.requestPermission && await handle.requestPermission({mode:"readwrite"})!=="granted"){
+        throw Error("Permesso di scrittura non concesso");
+      }
+    }catch(permErr){
+      if(permErr&&permErr.name==="AbortError") throw permErr;
+      // alcuni browser non espongono requestPermission: si prova comunque a scrivere
+    }
     for(const d of ["dati","documenti"])await ensureDir(folderHandle,d);
-    setArchiveFolderLabel(folderHandle.name);
     enableArchiveButtons();
     await loadArchive();
+    setArchiveFolderLabel((folderHandle&&folderHandle.name)||"");
     return true;
   }catch(e){
     if(e&&e.name==="AbortError"){
       setArchiveFolderLabel(currentArchiveFolderName());
       return false;
     }
-    // Se fallisce (es. contesto non sicuro), lascia al chiamante il fallback webkitdirectory.
     setArchiveFolderLabel(currentArchiveFolderName());
     return false;
   }
@@ -2889,6 +2897,7 @@ function renderCommodityRateTables(){
 
 async function downloadLocalHtml(){
   const btn=$("downloadHtml");
+  if(!btn){ alert("Pulsante download non trovato."); return; }
   btn.disabled=true;
   try{
     let html="";
@@ -2992,24 +3001,28 @@ if($("downloadHtml")) $("downloadHtml").addEventListener("click",downloadLocalHt
     if(input.dataset.importing==="1") return;
     if(fileSig(input.files)!==lastSig) consumeFiles(input.files, "watch");
   }, 400);
-  async function pickFolder(){
-    // Come PreventivatoreStore: prova scrittura diretta se l'API c'è (anche HTML scaricato).
-    if(typeof chooseFolderDirectWrite==="function"&&typeof window.showDirectoryPicker==="function"){
-      const ok=await chooseFolderDirectWrite();
-      if(ok) return;
-    }
-    // Fallback lettura (Firefox / se la scrittura non è concessa).
-    try{ input.value=""; }catch(e){}
-    input.click();
-  }
-  if(wrap){
-    // L'input trasparente non deve rubare il click: gestiamo noi (writable prima).
+
+  // Come PreventivatoreStore: un click = showDirectoryPicker subito (gesto utente).
+  // L'input file resta nascosto sotto e si usa solo se l'API non c'è (Firefox).
+  const hasFsa=typeof window.showDirectoryPicker==="function";
+  if(hasFsa){
     input.style.pointerEvents="none";
-    wrap.addEventListener("click", async (e)=>{
-      e.preventDefault();
-      e.stopPropagation();
-      await pickFolder();
-    });
+    input.tabIndex=-1;
+    if(wrap){
+      wrap.addEventListener("click", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        chooseFolderDirectWrite().then(function(ok){
+          if(ok) return;
+          // Nessun secondo click automatico: senza gesto fallirebbe in silenzio.
+        });
+      });
+    }
+  }else{
+    // Firefox / senza FSA: input trasparente riceve il click nativo.
+    if(wrap){
+      wrap.addEventListener("pointerdown", function(){});
+    }
   }
   const force=$("loadSelectedFolder");
   if(force){
