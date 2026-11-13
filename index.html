@@ -362,6 +362,21 @@ body>header h1{
   line-height:1.2!important;
 }
 body>header .header-actions button{box-shadow:none!important}
+
+/* Identità visiva condivisa — schermate operative (home e area cliente escluse) */
+body>header.app-header{display:flex;align-items:center;justify-content:space-between;gap:18px;background:#202124!important;color:#fff!important;border:0!important;border-radius:0!important;padding:14px clamp(18px,3vw,36px)!important;min-height:72px!important;box-shadow:0 3px 12px rgba(0,0,0,.12)!important}
+body>header.app-header:after{display:none!important}
+.app-brand{display:flex;align-items:center;gap:12px;min-width:0}
+.app-brand-mark{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border-radius:12px;background:#ffe500;color:#202124}
+.app-brand-mark svg{width:26px;height:26px;display:block}
+body>header.app-header .app-brand h1{margin:0;color:#fff!important;font-size:clamp(18px,2vw,23px)!important;font-weight:650!important;line-height:1.1!important;letter-spacing:-.45px!important}
+body>header.app-header .app-brand h1 strong{display:block;color:#ffe500;font-size:.9em;font-weight:850;letter-spacing:.7px}
+body>header.app-header .header-actions{display:flex;align-items:center;gap:9px}
+body>header.app-header .header-actions button{min-height:38px;padding:9px 14px;background:transparent!important;color:#fff!important;border:1px solid rgba(255,255,255,.55)!important;border-radius:10px!important;box-shadow:none!important}
+body>header.app-header .header-actions #logoutBtn{background:#ffe500!important;color:#202124!important;border-color:#ffe500!important;font-weight:800}
+body>header.app-header #sellerBack{display:none!important}
+@media(max-width:760px){body>header.app-header{padding:12px 14px!important;align-items:center;flex-wrap:wrap}.app-brand-mark{width:38px;height:38px;flex-basis:38px}.app-brand{gap:9px}body>header.app-header .header-actions{margin-left:auto;width:auto}body>header.app-header .header-actions button{flex:0 1 auto}}
+
 </style>
 </head>
 <body class="locked">
@@ -948,7 +963,7 @@ if (!firebaseConfigured()) {
 })();
 </script>
 
-<header><h1>Gestionale preventivi energia</h1><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button><button type="button" id="downloadHtml">Scarica HTML per uso locale</button></div></header>
+<header class="app-header"><div class="app-brand"><span class="app-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" role="img"><path d="M27.8 3 11 26.1h10.4L19.2 45 37 19.8H26.2L27.8 3Z" fill="currentColor"/></svg></span><h1>Preventivatore <strong>ENERGIA</strong></h1></div><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button><button type="button" id="downloadHtml">Scarica HTML per uso locale</button></div></header>
 <main>
 <section class="panel" open><h2>1. Archivio sul computer</h2>
 <div id="folderStatus" class="status">Cartella selezionata: nessuna</div>
