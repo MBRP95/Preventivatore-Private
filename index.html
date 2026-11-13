@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="it">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-13T11:16:41.000Z"><meta name="update-url" content="/api/public-index">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-13T11:25:40.000Z"><meta name="update-url" content="/api/public-index">
 <title>Gestionale preventivi energia — Offline</title>
 <style>
 :root{font-family:Arial,Helvetica,sans-serif;color:#292929;background:#fffbea;--fw-yellow:#ffe500;--fw-yellow-deep:#f4d900;--fw-ink:#242424;--fw-muted:#66615a;--fw-border:#eadf83;--fw-pale:#fff8bf}
@@ -1708,13 +1708,14 @@ function canUseDirectoryPicker(){
   // Come la vecchia PreventivatoreStore: se l'API c'è, si prova (anche da HTML locale).
   return typeof window.showDirectoryPicker==="function";
 }
+function isFirefoxBrowser(){
+  const ua=String(navigator.userAgent||"");
+  return /firefox\/\d/i.test(ua) && !/seamonkey/i.test(ua);
+}
 function archiveFolderBlockedReason(){
-  // Blocco solo Firefox (o browser senza API) sul sito https.
-  if(canUseDirectoryPicker()||isLocalOfflineFile()||!window.isSecureContext) return "";
-  if(typeof window.showDirectoryPicker!=="function"){
-    return "Funzione non abilitata per Firefox";
-  }
-  return "";
+  // Senza showDirectoryPicker (tipicamente Firefox) la cartella non è gestibile.
+  if(typeof window.showDirectoryPicker==="function") return "";
+  return "Funzione non abilitata per Firefox";
 }
 function downloadTextFile(name, text){
   const a=document.createElement("a");
@@ -3080,18 +3081,17 @@ setToolMode("mix");
     if($("loadArchive")) $("loadArchive").disabled=true;
     if($("folderStatus")) $("folderStatus").textContent=fxMsg;
   }
-  setArchiveFolderLabel(currentArchiveFolderName());
-  if(!dirSupported){
-    showFxBlocked();
-    return;
-  }
   if(direct) direct.classList.add("hidden");
-  if(typeof isLocalOfflineFile==="function"&&isLocalOfflineFile()){
-    return;
-  }
-  const blocked=typeof archiveFolderBlockedReason==="function"?archiveFolderBlockedReason():"";
+  const blocked=(typeof archiveFolderBlockedReason==="function"&&archiveFolderBlockedReason())
+    || ((typeof isFirefoxBrowser==="function"&&isFirefoxBrowser())?fxMsg:"")
+    || (!dirSupported?fxMsg:"");
   if(blocked){
     showFxBlocked();
+    return;
+  }
+  setArchiveFolderLabel(currentArchiveFolderName());
+  if(typeof isLocalOfflineFile==="function"&&isLocalOfflineFile()){
+    if(typeof restoreFirefoxArchive==="function") restoreFirefoxArchive();
     return;
   }
   if(typeof restoreFirefoxArchive==="function") restoreFirefoxArchive();
