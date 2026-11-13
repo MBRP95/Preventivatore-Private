@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="it">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-13T10:29:56.000Z"><meta name="update-url" content="/api/public-index">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-13T10:32:30.000Z"><meta name="update-url" content="/api/public-index">
 <title>Gestionale preventivi energia — Offline</title>
 <style>
 :root{font-family:Arial,Helvetica,sans-serif;color:#292929;background:#fffbea;--fw-yellow:#ffe500;--fw-yellow-deep:#f4d900;--fw-ink:#242424;--fw-muted:#66615a;--fw-border:#eadf83;--fw-pale:#fff8bf}
@@ -1581,7 +1581,7 @@ function isEphemeralArchive(){
 }
 function savedArchiveMessage(number,chromeMessage){
   if(isEphemeralArchive()){
-    return "Salvato "+number+". PDF scaricato. I JSON sono in Download: mettili nella cartella dei preventivi (da file HTML Chrome non scrive dentro la cartella da solo).";
+    return "Salvato "+number+". PDF scaricato. I JSON sono in Download: mettili nella cartella (questa selezione non ha permesso di scrittura).";
   }
   return chromeMessage;
 }
@@ -1705,7 +1705,8 @@ function isLocalOfflineFile(){
   return !!(window.__OFFLINE_BUNDLE||location.protocol==="file:"||location.protocol==="content:"||(window.isOfflineBundle&&window.isOfflineBundle()));
 }
 function canUseDirectoryPicker(){
-  return !!(window.isSecureContext&&typeof window.showDirectoryPicker==="function"&&location.protocol!=="file:"&&location.protocol!=="content:");
+  // Come la vecchia PreventivatoreStore: se l'API c'è, si prova (anche da HTML locale).
+  return typeof window.showDirectoryPicker==="function";
 }
 function archiveFolderBlockedReason(){
   // Blocco solo Firefox (o browser senza API) sul sito https.
@@ -1731,10 +1732,8 @@ async function chooseFolderDirectWrite(){
     return;
   }
   if(!canUseDirectoryPicker()){
-    alert("Scrittura diretta disponibile solo dal sito in Chrome o Edge.");
-    return;
+    return false;
   }
-  
   try{
     folderHandle=await window.showDirectoryPicker({mode:"readwrite"});
     if(await folderHandle.requestPermission({mode:"readwrite"})!=="granted")throw Error("Permesso di scrittura non concesso");
@@ -1742,12 +1741,15 @@ async function chooseFolderDirectWrite(){
     setArchiveFolderLabel(folderHandle.name);
     enableArchiveButtons();
     await loadArchive();
+    return true;
   }catch(e){
     if(e&&e.name==="AbortError"){
       setArchiveFolderLabel(currentArchiveFolderName());
-      return;
+      return false;
     }
-    alert("Scrittura diretta non disponibile: "+(e&&e.message?e.message:e)); setArchiveFolderLabel(currentArchiveFolderName());
+    // Se fallisce (es. contesto non sicuro), lascia al chiamante il fallback webkitdirectory.
+    setArchiveFolderLabel(currentArchiveFolderName());
+    return false;
   }
 }
 async function chooseFolder(){
@@ -2983,28 +2985,31 @@ if($("downloadHtml")) $("downloadHtml").addEventListener("click",downloadLocalHt
     }
   }
   window.__consumeFolderFiles=()=>consumeFiles(input.files,"manual");
-  const useWritable=typeof canUseDirectoryPicker==="function"&&canUseDirectoryPicker();
-  if(useWritable){
-    // Sul sito https Chrome/Edge: scrittura diretta in cartella (niente download JSON).
-    input.style.pointerEvents="none";
-    input.tabIndex=-1;
-    input.setAttribute("aria-hidden","true");
-    if(wrap){
-      wrap.addEventListener("click", async (e)=>{
-        e.preventDefault();
-        e.stopPropagation();
-        if(typeof chooseFolderDirectWrite==="function") await chooseFolderDirectWrite();
-      });
+  input.addEventListener("change", e=>{ consumeFiles(e.target.files, "change"); });
+  input.addEventListener("input", e=>{ consumeFiles(e.target.files, "input"); });
+  setInterval(()=>{
+    if(!(input.files&&input.files.length)) return;
+    if(input.dataset.importing==="1") return;
+    if(fileSig(input.files)!==lastSig) consumeFiles(input.files, "watch");
+  }, 400);
+  async function pickFolder(){
+    // Come PreventivatoreStore: prova scrittura diretta se l'API c'è (anche HTML scaricato).
+    if(typeof chooseFolderDirectWrite==="function"&&typeof window.showDirectoryPicker==="function"){
+      const ok=await chooseFolderDirectWrite();
+      if(ok) return;
     }
-  }else{
-    // file:// / senza File System Access: lettura cartella + salvataggi via download JSON.
-    input.addEventListener("change", e=>{ consumeFiles(e.target.files, "change"); });
-    input.addEventListener("input", e=>{ consumeFiles(e.target.files, "input"); });
-    setInterval(()=>{
-      if(!(input.files&&input.files.length)) return;
-      if(input.dataset.importing==="1") return;
-      if(fileSig(input.files)!==lastSig) consumeFiles(input.files, "watch");
-    }, 400);
+    // Fallback lettura (Firefox / se la scrittura non è concessa).
+    try{ input.value=""; }catch(e){}
+    input.click();
+  }
+  if(wrap){
+    // L'input trasparente non deve rubare il click: gestiamo noi (writable prima).
+    input.style.pointerEvents="none";
+    wrap.addEventListener("click", async (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      await pickFolder();
+    });
   }
   const force=$("loadSelectedFolder");
   if(force){
