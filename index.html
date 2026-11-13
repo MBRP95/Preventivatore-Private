@@ -345,6 +345,23 @@ body>header .header-actions{gap:10px}
 body>header .header-actions button{border-radius:12px;box-shadow:none}
 body>header #sellerBack{display:none!important}
 @media(max-width:760px){body>header{padding:15px 16px}body>header .header-actions{width:auto}body>header .header-actions button{flex:0 1 auto}}
+
+/* Revisione v5: header integrato nello sfondo, senza effetto banner */
+body>header{
+  background:transparent!important;
+  box-shadow:none!important;
+  border:0!important;
+  min-height:0!important;
+  padding:22px clamp(20px,3.5vw,44px) 14px!important;
+}
+body>header:after{display:none!important}
+body>header h1{
+  font-size:clamp(23px,2vw,26px)!important;
+  font-weight:760!important;
+  letter-spacing:-.65px!important;
+  line-height:1.2!important;
+}
+body>header .header-actions button{box-shadow:none!important}
 </style>
 </head>
 <body class="locked">
