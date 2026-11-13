@@ -56,6 +56,32 @@
   details.panel>summary::-webkit-details-marker{display:none}
   details.panel>summary::after{content:"＋";flex:0 0 auto;width:28px;height:28px;border:2px solid #111;border-radius:8px;background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}
   details.panel[open]>summary::after{content:"−"}
+
+/* Layout refresh — list editor */
+body{background:#fff8d8}
+header{padding:18px clamp(16px,3vw,30px);border-bottom-width:4px;box-shadow:0 3px 12px rgba(0,0,0,.06)}
+header h1{font-size:clamp(22px,2.5vw,29px);letter-spacing:-.6px}
+main{max-width:1180px;padding:20px clamp(14px,2vw,24px) 40px}
+.panel{background:#fff;border:1px solid #e4d36b;border-top:5px solid #ffe500;border-radius:16px;padding:clamp(16px,2vw,24px);box-shadow:0 8px 22px rgba(50,42,9,.07);margin-bottom:18px}
+h2{font-size:19px;letter-spacing:-.3px;margin-bottom:12px}
+h3{font-size:15px;margin:20px 0 10px}
+h4{font-size:14px}
+.actions{gap:10px;margin-top:14px}
+button,label.file{min-height:40px;border-radius:10px;padding:10px 14px;box-shadow:0 2px 0 rgba(0,0,0,.08)}
+button.secondary{background:#fff;border-color:#222}
+.status{padding:11px 14px;border:1px solid #e6d66a;background:#fff8c7;border-radius:10px;line-height:1.45}
+table{font-size:13px;border-collapse:separate;border-spacing:0;width:100%;overflow:hidden;border:1px solid #eee2a0;border-radius:10px}
+th,td{padding:10px 9px;border-bottom:1px solid #eee8c4;line-height:1.4}
+th{background:#fff1a0;font-size:12px;text-transform:uppercase;letter-spacing:.3px}
+tr:last-child td{border-bottom:0}
+input[type=number],input[type=date],input[type=text],input[type=password]{min-height:38px;border:1px solid #d8cc83;border-radius:8px;padding:8px 10px}
+details.panel>summary{font-size:17px;padding:4px 0 10px}
+@media(max-width:760px){
+ main{padding:12px 10px 28px}
+ .panel{padding:15px;border-radius:13px}
+ .actions button{flex:1 1 145px}
+ table{display:block;overflow-x:auto}
+}
 </style>
 </head>
 <body>
