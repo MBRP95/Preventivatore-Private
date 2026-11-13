@@ -207,13 +207,14 @@ body.fit-flyers .fs-btn.on{bottom:4px}
 
 .qpage:not(.is-single) .qoffer-main{align-items:center}
 .qpage:not(.is-single) .qart{flex:0 0 auto;width:auto;height:auto;margin-right:0;z-index:1;justify-content:center}
-.qpage:not(.is-single) .qart img{height:268px;width:auto;max-width:none;object-fit:contain;object-position:center center}
-.qpage:not(.is-single) .qart--gas{margin-right:4px}
-.qpage:not(.is-single) .qart--gas img{height:268px;width:auto;max-height:none}
-.qpage:not(.is-single) .qbody{position:relative;z-index:1}
+.qpage:not(.is-single) .qart img{height:250px;width:auto;max-width:168px;object-fit:contain;object-position:center center}
+.qpage:not(.is-single) .qart--gas{margin-right:2px;max-width:168px}
+.qpage:not(.is-single) .qart--gas img{height:auto;width:auto;max-width:168px;max-height:250px;object-fit:contain}
+.qpage:not(.is-single) .qbody{position:relative;z-index:1;min-width:0}
 .qpage:not(.is-single) .qbox .val{font-size:14px}
-.qpage:not(.is-single) .qmonth{gap:3px;padding:4px 3px 4px 5px}
-.qpage:not(.is-single) .qmonth b{font-size:10px;padding:5px 3px}
+.qpage:not(.is-single) .qmonth{gap:2px;padding:4px 2px 4px 5px}
+.qpage:not(.is-single) .qmonth span{flex:0 1 auto;min-width:0}
+.qpage:not(.is-single) .qmonth b{font-size:10px;padding:5px 4px;overflow:hidden;text-overflow:ellipsis}
 .qbody{flex:1;min-width:0;padding-top:2px;overflow:hidden}
 .qban{background:#111;color:#FFD000;border-radius:14px;text-align:center;padding:11px 8px 12px;margin-bottom:10px}
 .qban small{display:block;font-style:italic;font-weight:800;font-size:11px;letter-spacing:.2px}
@@ -1517,6 +1518,10 @@ function bindFit(){
 }
 function downloadPdfBlob(canvas){
   const W=canvas.width,H=canvas.height;
+  const pageW=595.28, pageH=841.89;
+  const fit=Math.min(pageW/W, pageH/H);
+  const drawW=W*fit, drawH=H*fit;
+  const ox=(pageW-drawW)/2, oy=(pageH-drawH)/2;
   const jpeg=canvas.toDataURL("image/jpeg",0.95).split(",")[1];
   const binary=atob(jpeg),bytes=new Uint8Array(binary.length);
   for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
@@ -1526,9 +1531,9 @@ function downloadPdfBlob(canvas){
   push(enc("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n"));
   obj(1,"<< /Type /Catalog /Pages 2 0 R >>");
   obj(2,"<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-  obj(3,"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>");
+  obj(3,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
   xref[4]=offset;push(enc(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${W} /Height ${H} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${bytes.length} >>\nstream\n`));push(bytes);push(enc("\nendstream\nendobj\n"));
-  const stream="q\n595.28 0 0 841.89 0 0 cm\n/Im0 Do\nQ";
+  const stream=`q\n1 0.816 0 rg\n0 0 ${pageW} ${pageH} re\nf\nQ\nq\n${drawW.toFixed(2)} 0 0 ${drawH.toFixed(2)} ${ox.toFixed(2)} ${oy.toFixed(2)} cm\n/Im0 Do\nQ`;
   obj(5,`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
   const startXref=offset;let x=`xref\n0 6\n0000000000 65535 f \n`;
   for(let i=1;i<=5;i++)x+=String(xref[i]).padStart(10,"0")+" 00000 n \n";
