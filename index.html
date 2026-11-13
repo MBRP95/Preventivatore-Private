@@ -316,6 +316,24 @@ td{border-color:#edf0f3}
 #modePick button{border:1px solid #20242b;box-shadow:0 2px 0 rgba(0,0,0,.08)}
 #gate form,#passwordModal .pwd-card{background:#fff;border:1px solid var(--fw-border);border-radius:18px;box-shadow:0 18px 60px rgba(20,30,45,.16)}
 @media(max-width:760px){body>header{align-items:flex-start}body>header .header-actions{width:100%}body>header .header-actions button{flex:1 1 130px}}
+
+/* Revisione visuale v3: giallo identitario e header più strutturato */
+:root{--fw-canvas:#fff7bf;--fw-border:#e5d46c;--fw-shadow:0 8px 24px rgba(52,43,8,.09)}
+body{background:linear-gradient(180deg,#ffe500 0,#fff2a3 220px,#fffbea 520px);color:#20242b}
+body>header{position:relative;isolation:isolate;background:linear-gradient(110deg,#ffe500 0%,#ffe500 62%,#ffef70 100%);border:0;border-bottom:1px solid rgba(32,36,43,.15);border-top:0;padding:20px clamp(18px,3.5vw,44px);min-height:100px;box-shadow:0 7px 22px rgba(70,57,0,.10)}
+body>header:after{content:"";position:absolute;right:0;top:0;bottom:0;width:22%;background:linear-gradient(110deg,transparent,rgba(255,255,255,.22));pointer-events:none;z-index:-1}
+body>header h1{font-size:clamp(22px,2.2vw,28px);font-weight:850;letter-spacing:-.8px;line-height:1.12}
+body>header h1:before{content:"PROMO ENERGIA  /  AREA OPERATIVA";display:block;margin-bottom:7px;font-size:10px;line-height:1.2;letter-spacing:1.8px;font-weight:850;color:rgba(32,36,43,.72)}
+body>header .header-actions{align-items:center;gap:9px}
+body>header .header-actions button{min-height:40px;padding:10px 15px;background:#fff;border:1px solid rgba(32,36,43,.65);border-radius:9px;box-shadow:0 2px 0 rgba(32,36,43,.10);font-size:13px}
+body>header .header-actions button:first-child{background:#20242b;color:#fff;border-color:#20242b}
+body>header .header-actions button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 5px 12px rgba(32,36,43,.15)}
+main{margin-top:24px}
+.panel{border-top:4px solid #ffe500}
+#modePick{background:linear-gradient(180deg,#ffe500 0,#ffed78 34%,#fffbea 100%);min-height:100vh}
+#modePick .entry{box-shadow:0 14px 34px rgba(52,43,8,.13)}
+#gate{background:linear-gradient(180deg,#ffe500,#fff4ae)}
+@media(max-width:760px){body>header{min-height:0;padding:18px 16px}body>header .header-actions{width:100%}body>header .header-actions button{flex:1 1 130px}}
 </style>
 </head>
 <body class="locked">
@@ -3549,6 +3567,22 @@ main{max-width:1040px}
 #step .nav button{border-radius:10px;box-shadow:none}
 #step .nav button.secondary{border:1px solid #d8dde4}
 @media(max-width:700px){header{padding:18px 16px 12px}}
+
+/* Continuità cromatica cliente-volantino */
+:root{background:#ffd000}
+html,body{background:#ffd000!important;color:#20242b}
+body{min-height:100vh;background:linear-gradient(180deg,#ffd000 0%,#ffd000 100%)!important}
+header{background:transparent;max-width:1040px;padding:28px clamp(16px,3vw,28px) 14px}
+header .brand{color:#302800;font-size:12px;letter-spacing:1.7px;font-weight:900}
+header h1{color:#20242b;font-size:clamp(29px,4vw,38px);letter-spacing:-1.1px}
+.leave-btn{border:1px solid #20242b;background:#fff;border-radius:10px}
+main{padding-top:10px}
+#step{background:#fff;border:1px solid rgba(32,36,43,.12);border-top:4px solid #20242b;box-shadow:0 12px 32px rgba(48,37,0,.14)}
+.progress{background:#fff0a0}
+.progress span{background:#20242b}
+.choice,.pcard{background:#fffdf4;border-color:#e6d67a}
+.choice.selected,.pcard.selected{background:#fff4a8;border-color:#20242b}
+@media(max-width:700px){header{padding:20px 16px 12px}}
 </style>
 </head>
 <body>
@@ -5079,6 +5113,14 @@ input,select{border:1px solid #d8dde4;border-radius:8px;background:#fff;color:#2
 input:focus,select:focus{outline:0;border-color:#b99f00;box-shadow:0 0 0 3px rgba(255,229,0,.22)}
 .flyer-canvas img{border:1px solid #d8dde4;border-radius:10px}
 @media(max-width:760px){header{align-items:flex-start}main{padding:14px 10px 28px}}
+
+/* Admin/listini: giallo di brand e testata coordinata */
+body{background:linear-gradient(180deg,#ffe500 0,#fff1a0 210px,#fffbea 500px);color:#20242b}
+header{background:linear-gradient(110deg,#ffe500 0%,#ffe500 68%,#ffef70 100%);border:0;border-bottom:1px solid rgba(32,36,43,.15);border-top:0;min-height:88px;padding:18px clamp(16px,3vw,34px);box-shadow:0 7px 22px rgba(70,57,0,.10)}
+header h1{font-size:clamp(22px,2.1vw,27px);font-weight:850;letter-spacing:-.7px}
+header h1:before{content:"PROMO ENERGIA  /  CONFIGURAZIONE";display:block;margin-bottom:7px;font-size:10px;line-height:1.2;letter-spacing:1.8px;font-weight:850;color:rgba(32,36,43,.72)}
+main{margin-top:22px}
+.panel{border-top:4px solid #ffe500}
 </style>
 </head>
 <body>
