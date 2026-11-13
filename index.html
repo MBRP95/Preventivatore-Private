@@ -963,11 +963,11 @@ if (!firebaseConfigured()) {
 })();
 </script>
 
-<header class="app-header"><div class="app-brand"><span class="app-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" role="img"><path d="M27.8 3 11 26.1h10.4L19.2 45 37 19.8H26.2L27.8 3Z" fill="currentColor"/></svg></span><h1>Preventivatore <strong>ENERGIA</strong></h1></div><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button><button type="button" id="downloadHtml">Scarica HTML per uso locale</button></div></header>
+<header class="app-header"><div class="app-brand"><span class="app-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" role="img"><path d="M27.8 3 11 26.1h10.4L19.2 45 37 19.8H26.2L27.8 3Z" fill="currentColor"/></svg></span><h1>Preventivatore <strong>ENERGIA</strong></h1></div><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button></div></header>
 <main>
 <section class="panel" open><h2>1. Archivio sul computer</h2>
 <div id="folderStatus" class="status">Cartella selezionata: nessuna</div>
-<div class="actions"><div id="chooseFolder" class="folder-pick-wrap"><span class="folder-pick-face">Seleziona nuova cartella</span><input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple></div><button type="button" id="loadSelectedFolder" class="hidden">Carica i file già scelti</button><button type="button" id="chooseFolderDirect" class="hidden">Scrivi direttamente nella cartella</button><button type="button" class="hidden" id="loadArchive" disabled>Rileggi la cartella</button></div></section>
+<div class="actions"><div id="chooseFolder" class="folder-pick-wrap"><span class="folder-pick-face">Seleziona nuova cartella</span><input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple></div><button type="button" id="loadSelectedFolder" class="hidden">Carica i file già scelti</button><button type="button" id="chooseFolderDirect" class="hidden">Scrivi direttamente nella cartella</button><button type="button" class="hidden" id="loadArchive" disabled>Rileggi la cartella</button><button type="button" id="downloadHtml" class="secondary">Scarica HTML per uso locale</button></div></section>
 <section class="panel" open><h2>2. Dati del cliente e del negozio</h2><div class="grid">
 <label>Nome e cognome cliente<input id="name" placeholder="Mario Rossi"></label>
 <label>Codice fiscale<input id="fiscalCode" placeholder="RSSMRA85A41F205Z" maxlength="16"></label>
