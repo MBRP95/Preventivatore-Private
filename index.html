@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="it">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-12T20:15:21.000Z"><meta name="update-url" content="/api/public-index">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-13T10:03:08.000Z"><meta name="update-url" content="/api/public-index">
 <title>Gestionale preventivi energia — Offline</title>
 <style>
 :root{font-family:Arial,Helvetica,sans-serif;color:#292929;background:#fffbea;--fw-yellow:#ffe500;--fw-yellow-deep:#f4d900;--fw-ink:#242424;--fw-muted:#66615a;--fw-border:#eadf83;--fw-pale:#fff8bf}
@@ -874,8 +874,8 @@ if (!firebaseConfigured()) {
 <header><h1>Gestionale preventivi energia</h1><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button><button type="button" id="downloadHtml">Scarica HTML per uso locale</button></div></header>
 <main>
 <section class="panel" open><h2>1. Archivio sul computer</h2>
-<p class="note">Tocca il giallo e scegli la cartella con i PREV-….json. Se vedi i file al passaggio del mouse ma lo status non cambia, premi «Carica i file già scelti». Lo storico compare sotto (sezione Storico preventivi).</p>
-<div class="actions"><div id="chooseFolder" class="folder-pick-wrap"><span class="folder-pick-face">Seleziona cartella sul computer</span><input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple></div><button type="button" id="loadSelectedFolder" class="secondary">Carica i file già scelti</button><button type="button" id="chooseFolderDirect" class="secondary hidden">Scrivi direttamente nella cartella</button><button type="button" class="secondary" id="loadArchive" disabled>Rileggi la cartella</button></div><div id="buildStamp" class="note" style="margin-top:6px">Build cartella: 2026-11-12T20:15:21.000Z</div><div id="folderStatus" class="status">Nessuna cartella selezionata. I preventivi restano sul computer del negozio. Puoi comunque fare calcoli e stampare il PDF.</div></section>
+<div id="folderStatus" class="status">nessuna cartella selezionata.</div>
+<div class="actions"><div id="chooseFolder" class="folder-pick-wrap"><span class="folder-pick-face">Seleziona nuova cartella</span><input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple></div><button type="button" id="loadSelectedFolder" class="hidden">Carica i file già scelti</button><button type="button" id="chooseFolderDirect" class="hidden">Scrivi direttamente nella cartella</button><button type="button" class="hidden" id="loadArchive" disabled>Rileggi la cartella</button></div></section>
 <section class="panel" open><h2>2. Dati del cliente e del negozio</h2><div class="grid">
 <label>Nome e cognome cliente<input id="name" placeholder="Mario Rossi"></label>
 <label>Codice fiscale<input id="fiscalCode" placeholder="RSSMRA85A41F205Z" maxlength="16"></label>
@@ -1604,13 +1604,13 @@ function archivePathFromRel(rel){
 function isArchiveJson(arch){const lower=String(arch||"").toLowerCase();if(lower==="dati/clienti.json"||lower==="dati/ultimo-numero.json")return true;if(lower.startsWith("dati/preventivi/")&&!lower.slice("dati/preventivi/".length).includes("/"))return true;if(lower.startsWith("dati/cestino/")&&!lower.slice("dati/cestino/".length).includes("/"))return true;return false}
 async function importFirefoxFolder(fileList){
   if(window.isSecureContext&&!isLocalOfflineFile()&&typeof window.showDirectoryPicker!=="function"){
-    $("folderStatus").textContent="Funzione disabilitata per Firefox. Usa Chrome o Edge.";
+    setArchiveFolderLabel(""); alert("Funzione cartella non disponibile su Firefox. Usa Chrome o Edge.");
     return;
   }
   const ephemeral=true;
   const files=[...fileList];
   if(!files.length){
-    if(!folderHandle) $("folderStatus").textContent="Nessuna cartella selezionata. Puoi comunque fare calcoli e stampare il PDF.";
+    if(!folderHandle) setArchiveFolderLabel("");
     return;
   }
   const folderName=(relPathOf(files[0]).split("/")[0])||"Archivio";
@@ -1626,7 +1626,8 @@ async function importFirefoxFolder(fileList){
     folderHandle=firefoxDirHandle(store,"");
     enableArchiveButtons();
     await loadArchive();
-    $("folderStatus").textContent=store.hint+(ephemeral?" Uso locale: i salvataggi scaricheranno i file JSON.":"");
+    setArchiveFolderLabel(folderName);
+    if(store.hint) alert(store.hint);
     return;
   }
   if(!store||store.name!==folderName) store={name:folderName,files:{},dirs:new Set(),hint:""};
@@ -1653,12 +1654,8 @@ async function importFirefoxFolder(fileList){
     if($("history")) $("history").classList.remove("hidden");
     if(typeof renderHistory==="function") renderHistory();
   }
-  const skipped=Math.max(0, files.filter(f=>/\.json$/i.test(relPathOf(f))).length-accepted.length);
-  let msg="Cartella \""+folderName+"\" selezionata. Preventivi caricati: "+(quotes&&quotes.length||0)+" (file letti: "+imported+").";
-  if(skipped) msg+=" Ignorati "+skipped+" JSON non di archivio.";
-  if(badJson) msg+=" "+badJson+" JSON non leggibili.";
-  if(ephemeral) msg+=" Quando salvi, il browser scarica i JSON: mettili nella cartella dei preventivi.";
-  if($("folderStatus")) $("folderStatus").textContent=msg;
+  setArchiveFolderLabel(folderName);
+  if(badJson) alert(badJson+" file JSON non leggibili e sono stati saltati.");
 }
 
 async function restoreFirefoxArchive(){
@@ -1671,10 +1668,20 @@ async function restoreFirefoxArchive(){
     enableArchiveButtons();
     await loadArchive();
     const n=(quotes||[]).length;
-    $("folderStatus").textContent="Archivio riaperto"+(store.name?": "+store.name:"")+". Preventivi visibili: "+n+". Su Firefox restano in questo browser; per aggiornare la cartella di OneDrive selezionala di nuovo.";
+    setArchiveFolderLabel(store.name||"");
   }catch(e){
-    $("folderStatus").textContent="Archivio del browser non riaperto.";
+    setArchiveFolderLabel("");
   }
+}
+function setArchiveFolderLabel(name){
+  const el=$("folderStatus");
+  if(!el) return;
+  const n=String(name||"").trim();
+  el.textContent=n?n:"nessuna cartella selezionata.";
+}
+function currentArchiveFolderName(){
+  if(folderHandle&&folderHandle.name) return folderHandle.name;
+  return "";
 }
 function isLocalOfflineFile(){
   return !!(window.__OFFLINE_BUNDLE||location.protocol==="file:"||location.protocol==="content:"||(window.isOfflineBundle&&window.isOfflineBundle()));
@@ -1702,27 +1709,27 @@ function downloadTextFile(name, text){
 async function chooseFolderDirectWrite(){
   const blocked=archiveFolderBlockedReason();
   if(blocked){
-    if($("folderStatus")) $("folderStatus").textContent=blocked;
+    alert(blocked);
     return;
   }
   if(!canUseDirectoryPicker()){
-    if($("folderStatus")) $("folderStatus").textContent="Scrittura diretta disponibile solo dal sito in Chrome o Edge.";
+    alert("Scrittura diretta disponibile solo dal sito in Chrome o Edge.");
     return;
   }
-  if($("folderStatus")) $("folderStatus").textContent="Apertura selezione cartella per scrittura diretta…";
+  
   try{
     folderHandle=await window.showDirectoryPicker({mode:"readwrite"});
     if(await folderHandle.requestPermission({mode:"readwrite"})!=="granted")throw Error("Permesso di scrittura non concesso");
     for(const d of ["dati","documenti"])await ensureDir(folderHandle,d);
-    if($("folderStatus")) $("folderStatus").textContent="Cartella selezionata: "+folderHandle.name+". I preventivi vengono scritti direttamente qui (anche OneDrive).";
+    setArchiveFolderLabel(folderHandle.name);
     enableArchiveButtons();
     await loadArchive();
   }catch(e){
     if(e&&e.name==="AbortError"){
-      if($("folderStatus")) $("folderStatus").textContent="Scrittura diretta annullata. Puoi comunque usare «Seleziona cartella sul computer» e i download JSON.";
+      setArchiveFolderLabel(currentArchiveFolderName());
       return;
     }
-    if($("folderStatus")) $("folderStatus").textContent="Scrittura diretta non disponibile: "+(e&&e.message?e.message:e)+". Usa il pulsante giallo e i file JSON scaricati.";
+    alert("Scrittura diretta non disponibile: "+(e&&e.message?e.message:e)); setArchiveFolderLabel(currentArchiveFolderName());
   }
 }
 async function chooseFolder(){
@@ -1738,7 +1745,7 @@ function normalizeQuote(q){
  }
  return q;
 }
-async function loadArchive(){if(!folderHandle)return;try{const d=await ensureDir(folderHandle,"dati"),qdir=await ensureDir(d,"preventivi"),tdir=await ensureDir(d,"cestino");customers=await readJson(d,"clienti.json",[]);quotes=(await readJsonFiles(qdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));trashQuotes=(await readJsonFiles(tdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));quotes.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));trashQuotes.sort((a,b)=>(b.deletedAt||"").localeCompare(a.deletedAt||""));await rememberIssuedNumbers();let archiveMsg=`Cartella letta. Preventivi: ${quotes.length}. Nel cestino: ${trashQuotes.length}. Il prossimo numero è quello dopo l'ultimo, anche se un preventivo è stato cancellato.`;if(folderHandle.firefoxFallback){if(folderHandle.store&&folderHandle.store.ephemeral){archiveMsg+=" Cartella caricata in memoria: i nuovi salvataggi scaricano i JSON.";}else{archiveMsg+=" Funzione non disponibile per Firefox.";}if(folderHandle.store&&folderHandle.store.hint){archiveMsg+=" "+folderHandle.store.hint;folderHandle.store.hint=""}}$("folderStatus").textContent=archiveMsg;renderHistory();renderTrash()}catch(e){$("folderStatus").textContent="Errore lettura archivio: "+e.message}}
+async function loadArchive(){if(!folderHandle)return;try{const d=await ensureDir(folderHandle,"dati"),qdir=await ensureDir(d,"preventivi"),tdir=await ensureDir(d,"cestino");customers=await readJson(d,"clienti.json",[]);quotes=(await readJsonFiles(qdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));trashQuotes=(await readJsonFiles(tdir)).map(x=>({...normalizeQuote(x.data),_filename:x.name}));quotes.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));trashQuotes.sort((a,b)=>(b.deletedAt||"").localeCompare(a.deletedAt||""));await rememberIssuedNumbers();setArchiveFolderLabel((folderHandle&&folderHandle.name)||"");renderHistory();renderTrash()}catch(e){alert("Errore lettura archivio: "+e.message); setArchiveFolderLabel(currentArchiveFolderName());}}
 function sectionReady(s){if(!s)return false;if(s.product==="commodity")return !!s.offer;return !!(s.selectedPromo&&s.calculations)}
 async function saveQuote(){if(!currentQuote)return;applyFormIdentity(currentQuote);if(!customerReady(currentQuote.customer)){alert("Senza nome, email e cellulare del cliente il preventivo non si può salvare. Puoi comunque scaricare il PDF.");$("saveQuote").disabled=true;return}for(const [k,s] of Object.entries(currentQuote.sections))if(!sectionReady(s)){alert("Seleziona una promozione per ogni servizio incluso.");return}if(!folderHandle){alert("Seleziona la cartella archivio sul computer.");return}
  try{const d=await ensureDir(folderHandle,"dati"),qdir=await ensureDir(d,"preventivi");await ensureUniqueId(currentQuote);currentQuote.quoteNumber=await assignQuoteNumber(currentQuote);currentQuote.status="salvato";currentQuote.savedAt=new Date().toISOString();await writeQuoteFile(qdir,currentQuote);const ci=customers.findIndex(c=>c.email.toLowerCase()===currentQuote.customer.email.toLowerCase());const cust={...currentQuote.customer,shop:currentQuote.shop};if(ci>=0)customers[ci]=cust;else customers.push(cust);await writeJson(d,"clienti.json",customers);await loadArchive();showQuotePreview(currentQuote);$("saveStatus").textContent=savedArchiveMessage(currentQuote.quoteNumber,`Salvato ${currentQuote.quoteNumber}. Il file è nella cartella, con il suo numero.`);$("makePdf").disabled=false}catch(e){$("saveStatus").textContent="Errore nel salvataggio: "+e.message}}
@@ -2902,7 +2909,7 @@ if($("downloadHtml")) $("downloadHtml").addEventListener("click",downloadLocalHt
   async function consumeFiles(fileList, reason){
     const files=[...(fileList||[])];
     if(!files.length){
-      if($("folderStatus")) $("folderStatus").textContent="Nessun file sull'input. Usa il pulsante giallo, scegli la cartella, poi se serve «Carica i file già scelti».";
+      setArchiveFolderLabel(currentArchiveFolderName());
       return false;
     }
     const sig=fileSig(files);
@@ -2912,14 +2919,14 @@ if($("downloadHtml")) $("downloadHtml").addEventListener("click",downloadLocalHt
     }
     if(input.dataset.importing==="1") return false;
     input.dataset.importing="1";
-    if($("folderStatus")) $("folderStatus").textContent="Lettura cartella in corso… ("+files.length+" file)";
+    
     try{
       await importFirefoxFolder(files);
       lastSig=sig;
       revealHistory();
       return true;
     }catch(err){
-      if($("folderStatus")) $("folderStatus").textContent="Lettura cartella non riuscita: "+(err&&err.message?err.message:err);
+      alert("Lettura cartella non riuscita: "+(err&&err.message?err.message:err)); setArchiveFolderLabel(currentArchiveFolderName());
       return false;
     }finally{
       input.dataset.importing="";
@@ -2934,7 +2941,7 @@ if($("downloadHtml")) $("downloadHtml").addEventListener("click",downloadLocalHt
     if(fileSig(input.files)!==lastSig) consumeFiles(input.files, "watch");
   }, 400);
   const arm=()=>{
-    if($("folderStatus")) $("folderStatus").textContent="Scegli la cartella OneDrive… Poi, se lo status non si aggiorna, premi «Carica i file già scelti».";
+    
   };
   input.addEventListener("click", arm);
   if(wrap) wrap.addEventListener("pointerdown", arm);
@@ -2942,7 +2949,7 @@ if($("downloadHtml")) $("downloadHtml").addEventListener("click",downloadLocalHt
   if(force){
     force.addEventListener("click", async ()=>{
       const n=input.files?input.files.length:0;
-      if($("folderStatus")) $("folderStatus").textContent=n?("Caricamento di "+n+" file già selezionati…"):"Nessun file selezionato: usa prima il pulsante giallo.";
+      if(!n){ setArchiveFolderLabel(currentArchiveFolderName()); return; }
       await consumeFiles(input.files, "button");
     });
   }
@@ -2987,28 +2994,24 @@ setToolMode("mix");
   const probe=document.createElement("input");
   probe.type="file";
   const dirSupported=("webkitdirectory" in probe);
+  setArchiveFolderLabel(currentArchiveFolderName());
   if(!dirSupported){
     if(pick) pick.classList.add("hidden");
     if(direct) direct.classList.add("hidden");
-    if($("folderStatus")) $("folderStatus").textContent="Questo browser non può selezionare una cartella. Usa Chrome o Edge su computer.";
     if($("loadArchive")) $("loadArchive").disabled=true;
+    alert("Questo browser non può selezionare una cartella. Usa Chrome o Edge su computer.");
     return;
   }
+  if(direct) direct.classList.add("hidden");
   if(typeof isLocalOfflineFile==="function"&&isLocalOfflineFile()){
-    if(direct) direct.classList.add("hidden");
-    if($("folderStatus")) $("folderStatus").textContent="File locale: tocca «Seleziona cartella sul computer» e scegli la cartella OneDrive. I nuovi salvataggi scaricano i JSON da spostare in dati/preventivi.";
     return;
   }
   const blocked=typeof archiveFolderBlockedReason==="function"?archiveFolderBlockedReason():"";
   if(blocked){
-    if($("folderStatus")) $("folderStatus").textContent=blocked;
     if(pick) pick.classList.add("hidden");
-    if(direct) direct.classList.add("hidden");
     if($("loadArchive")) $("loadArchive").disabled=true;
+    alert(blocked);
     return;
-  }
-  if(direct&&typeof canUseDirectoryPicker==="function"&&canUseDirectoryPicker()){
-    direct.classList.remove("hidden");
   }
 })();
 
