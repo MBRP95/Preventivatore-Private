@@ -2913,6 +2913,21 @@ async function downloadLocalHtml(){
       try{html="<!DOCTYPE html>\n"+document.documentElement.outerHTML}catch(e){html=""}
     }
     if(!html.includes('id="promo-catalog"'))throw Error("File non riconosciuto");
+    // Le immagini del bundle online sono file separati per alleggerire la pagina.
+    // Nel download locale vengono reinserite come data URI per mantenere il singolo HTML offline.
+    const localAssets=[...new Set(html.match(/\.\/assets\/layout-refresh\/[^"' )]+/g)||[])];
+    for(const assetPath of localAssets){
+      const response=await fetch(new URL(assetPath,location.href).href,{cache:"no-store"});
+      if(!response.ok)throw Error("Impossibile incorporare una risorsa offline: "+assetPath);
+      const assetBlob=await response.blob();
+      const dataUrl=await new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=()=>resolve(String(reader.result||""));
+        reader.onerror=()=>reject(reader.error||new Error("Lettura risorsa non riuscita"));
+        reader.readAsDataURL(assetBlob);
+      });
+      html=html.split(assetPath).join(dataUrl);
+    }
     const boot="<"+"script>window.__OFFLINE_BUNDLE=true;<"+"/script>";
     // Rimuovi solo eventuali boot già iniettati in head (match esatto), mai il codice sorgente.
     html=html.split(boot).join("");
