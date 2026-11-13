@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="it">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-13T10:13:26.000Z"><meta name="update-url" content="/api/public-index">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="page-rev" content="2026-11-13T10:18:46.000Z"><meta name="update-url" content="/api/public-index">
 <title>Gestionale preventivi energia — Offline</title>
 <style>
 :root{font-family:Arial,Helvetica,sans-serif;color:#292929;background:#fffbea;--fw-yellow:#ffe500;--fw-yellow-deep:#f4d900;--fw-ink:#242424;--fw-muted:#66615a;--fw-border:#eadf83;--fw-pale:#fff8bf}
@@ -874,7 +874,7 @@ if (!firebaseConfigured()) {
 <header><h1>Gestionale preventivi energia</h1><div class="header-actions"><button type="button" id="sellerBack">Indietro</button><button type="button" id="logoutBtn" class="secondary">Esci</button><button type="button" id="downloadHtml">Scarica HTML per uso locale</button></div></header>
 <main>
 <section class="panel" open><h2>1. Archivio sul computer</h2>
-<div id="folderStatus" class="status">nessuna cartella selezionata.</div>
+<div id="folderStatus" class="status">Cartella selezionata: nessuna</div>
 <div class="actions"><div id="chooseFolder" class="folder-pick-wrap"><span class="folder-pick-face">Seleziona nuova cartella</span><input id="folderPickerFallback" class="folder-file-input" type="file" webkitdirectory directory multiple></div><button type="button" id="loadSelectedFolder" class="hidden">Carica i file già scelti</button><button type="button" id="chooseFolderDirect" class="hidden">Scrivi direttamente nella cartella</button><button type="button" class="hidden" id="loadArchive" disabled>Rileggi la cartella</button></div></section>
 <section class="panel" open><h2>2. Dati del cliente e del negozio</h2><div class="grid">
 <label>Nome e cognome cliente<input id="name" placeholder="Mario Rossi"></label>
@@ -1685,7 +1685,7 @@ function setArchiveFolderLabel(name){
   const el=$("folderStatus");
   if(!el) return;
   const n=String(name||"").trim();
-  el.textContent=n?n:"nessuna cartella selezionata.";
+  el.textContent=n?("Cartella selezionata: "+n):"Cartella selezionata: nessuna";
 }
 function currentArchiveFolderName(){
   if(folderHandle&&folderHandle.name) return folderHandle.name;
