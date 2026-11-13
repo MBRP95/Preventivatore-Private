@@ -56,12 +56,25 @@
   details.panel>summary::-webkit-details-marker{display:none}
   details.panel>summary::after{content:"＋";flex:0 0 auto;width:28px;height:28px;border:2px solid #111;border-radius:8px;background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}
   details.panel[open]>summary::after{content:"−"}
+/* Identità visiva condivisa — editor listini */
+body>header.app-header{background:#202124!important;color:#fff!important;border:0!important;border-bottom:0!important;border-radius:0!important;padding:14px clamp(18px,3vw,36px)!important;min-height:72px;box-shadow:0 3px 12px rgba(0,0,0,.12)}
+body>header.app-header .app-brand{display:flex;align-items:center;gap:12px;min-width:0}
+.app-brand-mark{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border-radius:12px;background:#ffe500;color:#202124}
+.app-brand-mark svg{width:26px;height:26px;display:block}
+body>header.app-header .app-brand h1{margin:0;color:#fff;font-size:clamp(18px,2vw,23px);font-weight:650;line-height:1.1;letter-spacing:-.45px}
+body>header.app-header .app-brand h1 strong{display:block;color:#ffe500;font-size:.9em;font-weight:850;letter-spacing:.7px}
+body>header.app-header .header-actions{align-items:center;gap:9px}
+body>header.app-header .header-actions button{min-height:38px;padding:9px 14px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.55);border-radius:10px;box-shadow:none}
+body>header.app-header .header-actions #editorLogout{background:#ffe500;color:#202124;border-color:#ffe500;font-weight:800}
+@media(max-width:760px){body>header.app-header{padding:12px 14px;flex-wrap:wrap}.app-brand-mark{width:38px;height:38px;flex-basis:38px}body>header.app-header .header-actions{margin-left:auto}}
+
+
 </style>
 </head>
 <body>
-<header>
-  <h1>Modifica listini</h1>
-  <div class="actions">
+<header class="app-header">
+  <div class="app-brand"><span class="app-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M27.8 3 11 26.1h10.4L19.2 45 37 19.8H26.2L27.8 3Z" fill="currentColor"/></svg></span><h1>Preventivatore <strong>ENERGIA</strong></h1></div>
+  <div class="actions header-actions">
     <button type="button" id="openPasswords" class="secondary" hidden>Gestione password</button>
     <button type="button" id="editorBack" class="secondary" hidden>Indietro</button>
     <button type="button" id="editorLogout" hidden>Esci</button>
