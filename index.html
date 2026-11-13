@@ -334,6 +334,17 @@ main{margin-top:24px}
 #modePick .entry{box-shadow:0 14px 34px rgba(52,43,8,.13)}
 #gate{background:linear-gradient(180deg,#ffe500,#fff4ae)}
 @media(max-width:760px){body>header{min-height:0;padding:18px 16px}body>header .header-actions{width:100%}body>header .header-actions button{flex:1 1 130px}}
+
+/* Revisione v4: home originale, testate meno rigide, navigazione essenziale */
+#modePick{background:#FFE500 url("./assets/layout-refresh/img-01.jpg") center/cover no-repeat!important;min-height:0}
+body>header{min-height:0;padding:16px clamp(18px,3vw,36px);background:linear-gradient(110deg,#ffe500 0%,#ffe94d 58%,#fff3a8 100%);border:0;box-shadow:0 3px 14px rgba(70,57,0,.07)}
+body>header:after{display:none}
+body>header h1{font-size:clamp(22px,2vw,27px);font-weight:800;letter-spacing:-.55px}
+body>header h1:before{display:none}
+body>header .header-actions{gap:10px}
+body>header .header-actions button{border-radius:12px;box-shadow:none}
+body>header #sellerBack{display:none!important}
+@media(max-width:760px){body>header{padding:15px 16px}body>header .header-actions{width:auto}body>header .header-actions button{flex:0 1 auto}}
 </style>
 </head>
 <body class="locked">
@@ -3583,6 +3594,11 @@ main{padding-top:10px}
 .choice,.pcard{background:#fffdf4;border-color:#e6d67a}
 .choice.selected,.pcard.selected{background:#fff4a8;border-color:#20242b}
 @media(max-width:700px){header{padding:20px 16px 12px}}
+
+/* Cliente: testata più leggera, sfondo coordinato al volantino */
+header{background:transparent;border:0;box-shadow:none;padding:24px clamp(16px,3vw,28px) 12px}
+header .brand{letter-spacing:1.2px}
+header h1{font-weight:800;letter-spacing:-.7px}
 </style>
 </head>
 <body>
@@ -5121,6 +5137,11 @@ header h1{font-size:clamp(22px,2.1vw,27px);font-weight:850;letter-spacing:-.7px}
 header h1:before{content:"PROMO ENERGIA  /  CONFIGURAZIONE";display:block;margin-bottom:7px;font-size:10px;line-height:1.2;letter-spacing:1.8px;font-weight:850;color:rgba(32,36,43,.72)}
 main{margin-top:22px}
 .panel{border-top:4px solid #ffe500}
+
+/* Admin/listini: testata più morbida e un solo comando di uscita */
+header{min-height:0;padding:16px clamp(16px,3vw,34px);background:linear-gradient(110deg,#ffe500 0%,#ffed72 58%,#fff5c2 100%);border:0;box-shadow:0 3px 14px rgba(70,57,0,.07)}
+header h1{font-weight:800;letter-spacing:-.55px}
+#editorBack{display:none!important}
 </style>
 </head>
 <body>
