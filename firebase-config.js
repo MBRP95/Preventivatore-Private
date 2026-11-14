@@ -7,7 +7,9 @@
 //   shop@preventivatore.invalid
 //   admin@preventivatore.invalid
 // Firestore users/{uid}: { role: "seller"|"admin", active: true, app: "preventivatore" }
+// Firestore listini/published: { catalog, next, updatedAt, rev } — offerte pubblicate dall'admin su Pages.
 // Authorized domains: includi mbrp95.github.io
+// Dopo un cambio a firestore.rules: firebase deploy --only firestore:rules
 
 export const firebaseConfig = {
   apiKey: "AIzaSyCSNyacPCgffrYsvSewW5XkAJ-fTK6FVZM",

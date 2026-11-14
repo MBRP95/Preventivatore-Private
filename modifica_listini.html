@@ -156,7 +156,7 @@ const $=id=>document.getElementById(id);
 const loaded={gestionale:null,cliente:null};
 let catalog=null, fileKind="gestionale", dirty=false;
 let flyerPages=null, flyerButtons=null, buttonsDirty=false;
-let baselineCatalog=null, publishMode=false, csrfToken="";
+let baselineCatalog=null, publishMode=false, firebasePublishMode=false, csrfToken="";
 function kindOf(html){
   const s=String(html||"");
   if(s.includes('id="cliente-app"')&&s.includes('id="editor-app"')) return "unito";
@@ -553,7 +553,7 @@ function validArea(a){
   return nums.every(n=>typeof n==="number"&&n>=0&&n<=1)&&a.w>=0.02&&a.h>=0.015&&a.x+a.w<=1.001&&a.y+a.h<=1.001;
 }
 function activeButtons(){return flyerButtons||extractButtons(clientHtml())||[]}
-function scaricaWord(){return publishMode?"Pubblica listini":(loaded.gestionale&&loaded.cliente?"Scarica i file":"Scarica l'HTML")}
+function scaricaWord(){return (publishMode||firebasePublishMode)?"Pubblica listini":(loaded.gestionale&&loaded.cliente?"Scarica i file":"Scarica l'HTML")}
 function flyerStatusText(){
   const pages=currentFlyers();
   const areas=activeButtons();
@@ -789,7 +789,7 @@ function addNextIndexMonth(){
   renderEditor();
   const pun=document.querySelector('[data-path="indices.series.0.pun"]');
   if(pun){pun.focus();pun.scrollIntoView({block:"center"})}
-  const scarica=publishMode?"poi pubblica i listini.":(fileKind==="both"?"poi scarica i due file.":"poi scarica il file.");
+  const scarica=(publishMode||firebasePublishMode)?"poi pubblica i listini.":(fileKind==="both"?"poi scarica i due file.":"poi scarica il file.");
   $("status").textContent=dropped?`Aggiunto ${monthTitle(id)}. ${dropped} esce dall'elenco. Inserisci PUN e PSV, ${scarica}`:`Aggiunto ${monthTitle(id)}. Inserisci PUN e PSV, ${scarica}`;
 }
 function applyInputs(next){
@@ -841,7 +841,7 @@ function addPromo(spec){
   renderEditor();
   const el=document.querySelector(`[data-path="${focusPath}"]`);
   if(el){el.focus();el.scrollIntoView({block:"center"})}
-  $("status").textContent=publishMode?"Promo aggiunta. Scrivi nome e parametri, poi pubblica i listini.":(fileKind==="both"?"Promo aggiunta. Scrivi nome e parametri, poi scarica i due file.":"Promo aggiunta. Scrivi nome e parametri, poi scarica il file.");
+  $("status").textContent=(publishMode||firebasePublishMode)?"Promo aggiunta. Scrivi nome e parametri, poi pubblica i listini.":(fileKind==="both"?"Promo aggiunta. Scrivi nome e parametri, poi scarica i due file.":"Promo aggiunta. Scrivi nome e parametri, poi scarica il file.");
 }
 function removePromo(path){
   readEditor();
@@ -851,7 +851,7 @@ function removePromo(path){
   dirty=true;
   list.splice(index,1);
   renderEditor();
-  const where=publishMode?"Pubblica i listini per aggiornare shop assistant e cliente.":(fileKind==="both"?"Scarica i due file per aggiornare gestionale e preventivo cliente.":"Scarica il file per aggiornare "+(fileKind==="cliente"?"il preventivo del cliente.":"il gestionale."));
+  const where=(publishMode||firebasePublishMode)?"Pubblica i listini per aggiornare shop assistant e cliente.":(fileKind==="both"?"Scarica i due file per aggiornare gestionale e preventivo cliente.":"Scarica il file per aggiornare "+(fileKind==="cliente"?"il preventivo del cliente.":"il gestionale."));
   $("status").textContent=name?`Tolta ${name}. ${where}`:`Promo tolta. ${where}`;
 }
 function asNum(value){
@@ -1008,7 +1008,7 @@ function paintNames(){
     $("nameCliente").textContent="incluso";
     $("nameCliente").classList.remove("muted");
   }
-  $("download").textContent=publishMode?"Pubblica listini":(loaded.gestionale&&loaded.cliente?"Scarica i due HTML":"Scarica HTML aggiornato");
+  $("download").textContent=(publishMode||firebasePublishMode)?"Pubblica listini":(loaded.gestionale&&loaded.cliente?"Scarica i due HTML":"Scarica HTML aggiornato");
   $("scheduleBox").classList.toggle("hidden",!(loaded.gestionale||loaded.cliente));
 }
 function showWorking(status){
@@ -1220,6 +1220,46 @@ async function publishHtml(fileHtml, message){
   if(res.status===409) throw Error(data.error||"Il file sul sito è cambiato. Riapri l'editor.");
   if(!res.ok) throw Error(data.error||"Pubblicazione non riuscita.");
 }
+function catalogScriptJson(html, id){
+  const re=new RegExp('<script type="application\\/json" id="'+id+'">([\\s\\S]*?)<\\/script>');
+  const m=String(html||"").match(re);
+  if(!m) return "";
+  const raw=String(m[1]||"").trim();
+  if(!raw) return "";
+  JSON.parse(raw);
+  return raw;
+}
+async function publishFirebase(fileHtml){
+  if(!(editorParent&&typeof editorParent.__publishListinoFirebase==="function")){
+    throw Error("Pubblicazione online non disponibile. Ricarica la pagina e accedi di nuovo come Admin.");
+  }
+  const catalog=catalogScriptJson(fileHtml,"promo-catalog");
+  if(!catalog) throw Error("Listino non trovato nel file da pubblicare.");
+  let next="";
+  try{ next=catalogScriptJson(fileHtml,"promo-catalog-next"); }catch(e){ next=""; }
+  await editorParent.__publishListinoFirebase({catalog, next});
+}
+function applyRemoteListinoToPage(page, remote){
+  if(!remote||!remote.catalog) return page;
+  let data;
+  try{ data=JSON.parse(remote.catalog); }catch(e){ return page; }
+  if(!data||!data.flat||!data.commodity) return page;
+  let html=replaceCatalog(page, finishCatalog(data));
+  if(remote.next){
+    let nextData;
+    try{ nextData=JSON.parse(remote.next); }catch(e){ nextData=null; }
+    const from=String(nextData&&nextData.liveFrom||"").slice(0,10);
+    if(nextData&&nextData.flat&&nextData.commodity&&/^\d{4}-\d{2}-\d{2}$/.test(from)){
+      delete nextData.liveFrom;
+      html=upsertScheduled(html, finishCatalog(nextData), from);
+    }else{
+      html=removeScheduled(html);
+    }
+  }else{
+    html=removeScheduled(html);
+  }
+  return html;
+}
 $("download").addEventListener("click",async()=>{
   const btn=$("download");
   try{
@@ -1235,6 +1275,13 @@ $("download").addEventListener("click",async()=>{
       const lead=built.from?"Listini pubblicati.":"Listini pubblicati. Riapri la pagina del negozio per vederli.";
       if(publishMode){
         await publishHtml(built.outer, built.from?"Aggiorna i listini dal "+built.from+".":"Aggiorna i listini.");
+        rememberBuilt(built, next, built.from);
+        clearPasswords();
+        $("status").textContent=lead+scheduleSentence(built.from)+passwordNote;
+        return;
+      }
+      if(firebasePublishMode){
+        await publishFirebase(built.outer);
         rememberBuilt(built, next, built.from);
         clearPasswords();
         $("status").textContent=lead+scheduleSentence(built.from)+passwordNote;
@@ -1331,7 +1378,7 @@ if(editorBase){
       if(res.status===404||res.status===405||res.status===501||res.status===502||typeof session!=="object"||session===null||!Object.keys(session).length){
         const parentRole=editorParent&&editorParent.__staffRole;
         if(parentRole==="admin"||(editorParent&&editorParent.__staffSource==="firebase"&&editorParent.__staffRole==="admin")){
-          status.textContent="Accesso Admin via Firebase. Caricamento listini dalla pagina…";
+          status.textContent="Accesso Admin via Firebase. Caricamento listini…";
           let page="";
           const tryUrls=[];
           try{
@@ -1351,22 +1398,32 @@ if(editorBase){
             }catch(e){}
           }
           if(kindOf(page)==="unito"){
+            let remote=null;
+            if(editorParent&&typeof editorParent.__readPublishedListino==="function"){
+              try{ remote=await editorParent.__readPublishedListino(); }catch(e){ remote=null; }
+            }
+            if(remote&&remote.catalog) page=applyRemoteListinoToPage(page, remote);
             loadCombined(page,"index.html");
             publishMode=false;
+            firebasePublishMode=typeof editorParent.__publishListinoFirebase==="function";
             csrfToken="";
             const lg=$("fileGestionale"); const lc=$("fileCliente");
             if(lg&&lg.closest("label")) lg.closest("label").classList.add("hidden");
             if(lc&&lc.closest("label")) lc.closest("label").classList.add("hidden");
-            $("download").textContent="Scarica HTML aggiornato";
+            $("download").textContent=firebasePublishMode?"Pubblica listini":"Scarica HTML aggiornato";
             $("download").disabled=false;
             $("reset").disabled=false;
-            status.textContent="Listino caricato da GitHub Pages (sessione Firebase). Per pubblicare scarica l'HTML e aggiorna il repository."+scheduleLoadedNote();
+            status.textContent=firebasePublishMode
+              ?"Listino caricato. Pubblica per aggiornare le offerte online (shop assistant e cliente)."
+              :"Listino caricato da GitHub Pages (sessione Firebase). Per pubblicare scarica l'HTML e aggiorna il repository.";
+            status.textContent+=scheduleLoadedNote();
             return;
           }
           status.textContent="Accesso Admin ok, ma il listino non è stato letto dalla pagina. Ricarica oppure carica Gestionale e Preventivo cliente a mano.";
         }
         status.textContent="Server Cloudflare non disponibile. Con accesso Firebase Admin i listini si caricano dalla pagina; altrimenti carica Gestionale e Preventivo cliente a mano.";
         publishMode=false;
+        firebasePublishMode=false;
         csrfToken="";
         $("fileGestionale").closest("label").classList.remove("hidden");
         $("fileCliente").closest("label").classList.remove("hidden");
@@ -1392,12 +1449,14 @@ if(editorBase){
       if(kindOf(html)!=="unito") throw Error("Il file dei listini ricevuto dal server non è l'index del sito.");
       loadCombined(html,"index.html");
       publishMode=true;
+      firebasePublishMode=false;
       $("fileGestionale").closest("label").classList.add("hidden");
       $("fileCliente").closest("label").classList.add("hidden");
       $("download").textContent="Pubblica listini";
       status.textContent="Listino caricato correttamente. Pubblica per aggiornarlo."+scheduleLoadedNote();
     }catch(err){
       publishMode=false;
+      firebasePublishMode=false;
       csrfToken="";
       loaded.gestionale=null;
       loaded.cliente=null;
