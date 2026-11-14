@@ -35,5 +35,23 @@ service cloud.firestore {
         && request.resource.data.sellerIter <= 500000;
       allow delete: if isPreventivatoreAdmin() && docId == 'passwords';
     }
+
+    // Listino offerte (JSON): lettura pubblica come l'HTML; scrittura solo admin.
+    match /listini/{docId} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if isPreventivatoreAdmin()
+        && docId == 'published'
+        && request.resource.data.keys().hasOnly(['catalog', 'next', 'updatedAt', 'rev'])
+        && request.resource.data.catalog is string
+        && request.resource.data.catalog.size() >= 100
+        && request.resource.data.catalog.size() < 500000
+        && request.resource.data.next is string
+        && request.resource.data.next.size() < 500000
+        && request.resource.data.rev is string
+        && request.resource.data.rev.size() > 0
+        && request.resource.data.rev.size() < 80;
+      allow delete: if isPreventivatoreAdmin() && docId == 'published';
+    }
   }
 }
