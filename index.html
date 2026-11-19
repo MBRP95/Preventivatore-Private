@@ -2498,9 +2498,9 @@ function downloadPdfFromCanvas(canvas){
   const drawW=W*fit, drawH=H*fit;
   const ox=(pageW-drawW)/2, oy=(pageH-drawH)/2;
   const jpeg=canvas.toDataURL("image/jpeg",0.95).split(",")[1];
-  const binary=atob(jpeg), bytes=new Uint8Array(binary.length);
+  const binary=atob(jpeg),bytes=new Uint8Array(binary.length);
   for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
-  const enc=s=>new TextEncoder().encode(s), chunks=[];let offset=0;const xref=[0];
+  const enc=s=>new TextEncoder().encode(s),chunks=[];let offset=0;const xref=[0];
   const push=b=>{chunks.push(b);offset+=b.length};
   const obj=(n,body)=>{xref[n]=offset;push(enc(`${n} 0 obj\n${body}\nendobj\n`))};
   push(enc("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n"));
