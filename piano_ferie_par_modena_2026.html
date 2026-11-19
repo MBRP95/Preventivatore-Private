@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Turni HR + Piano Ferie/PAR Modena 2026</title>
+<style>
+:root {
+  --ink: #1b2430;
+  --muted: #5d6b7a;
+  --bg: #eef2f6;
+  --panel: #fff;
+  --line: #d5dee7;
+  --accent: #0f6e56;
+  --accent-soft: #e4f4ee;
+  --neg: #c62828;
+  --pos: #1b7a4a;
+  --shadow: 0 10px 28px rgba(24, 39, 56, .07);
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    radial-gradient(1000px 380px at 0% -10%, #d7ebe3 0%, transparent 55%),
+    radial-gradient(900px 320px at 100% 0%, #dde7f5 0%, transparent 50%),
+    var(--bg);
+}
+header {
+  position: sticky; top: 0; z-index: 30;
+  background: rgba(255,255,255,.86);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  padding: 16px 20px;
+}
+header .wrap {
+  max-width: 1500px; margin: 0 auto;
+  display: flex; gap: 14px; flex-wrap: wrap;
+  align-items: flex-end; justify-content: space-between;
+}
+h1 { margin: 0; font-size: 1.35rem; letter-spacing: -.02em; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: .9rem; }
+.actions, .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button, .file-btn {
+  appearance: none; border: 1px solid var(--line); background: #fff; color: var(--ink);
+  border-radius: 8px; padding: 8px 12px; font: inherit; font-weight: 650; cursor: pointer;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.ghost { background: transparent; }
+button:hover { filter: brightness(.98); }
+.file-btn { display: inline-flex; align-items: center; }
+.file-btn input { display: none; }
+main { max-width: 1500px; margin: 0 auto; padding: 16px 14px 48px; display: grid; gap: 14px; }
+.panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: var(--shadow); padding: 14px 16px;
+}
+.panel h2 { margin: 0 0 10px; font-size: 1.02rem; }
+.main-tabs, #monthTabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.main-tabs button.active, #monthTabs button.active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+#monthTabs button { min-width: 52px; }
+.hint { color: var(--muted); font-size: .86rem; line-height: 1.45; margin: 0 0 10px; }
+.status { color: var(--muted); font-size: .84rem; margin-top: 8px; }
+.hidden { display: none !important; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 14px; font-size: .86rem; }
+.swatch { display: inline-flex; align-items: center; gap: 7px; }
+.swatch i {
+  width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(0,0,0,.12); display: inline-block;
+}
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.preset {
+  font-size: .82rem; padding: 6px 9px; border-radius: 999px; background: #f5f8fb;
+}
+.preset.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.preset.danger.active { background: #fdecea; border-color: #c62828; color: #c62828; }
+.week-block { margin-bottom: 14px; overflow-x: auto; }
+table.turni {
+  border-collapse: collapse; width: 100%; min-width: 980px; font-size: .78rem;
+}
+table.turni th, table.turni td {
+  border: 1px solid #cfd6de; text-align: center; padding: 5px 4px; min-width: 88px;
+}
+table.turni th.wd, table.turni tr.days th { background: #aeaaaa; color: #111; font-weight: 700; }
+table.turni tr.days th { background: #bfbfbf; }
+table.turni th.label, table.turni td.label {
+  text-align: left; min-width: 190px; max-width: 220px; background: #fff; font-weight: 650; font-size: .72rem;
+}
+table.turni th.storeh, table.turni td.store {
+  min-width: 90px; background: #fff; font-weight: 650;
+}
+table.turni td.cell { cursor: pointer; user-select: none; height: 34px; }
+table.turni td.cell:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+table.turni td.cell.selected { outline: 2px solid #0b4f3d; outline-offset: -2px; }
+table.turni td.cell.out, table.turni th.out { opacity: .45; background: #f0f0f0 !important; cursor: default; }
+table.turni th.ot, table.turni td.ot-val { min-width: 78px; background: #f7f8fa; font-weight: 700; }
+.summary, .people, .maturari { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.summary th, .summary td, .people th, .people td, .maturari th, .maturari td {
+  border-bottom: 1px solid var(--line); padding: 8px 7px; text-align: left; white-space: nowrap;
+}
+.summary th, .people th, .maturari th {
+  color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em;
+}
+.num { text-align: right !important; font-variant-numeric: tabular-nums; }
+.neg { color: var(--neg); font-weight: 700; }
+.pos { color: var(--pos); }
+.people input, .maturari input, #customShift {
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font: inherit; width: 100%;
+}
+.people input.num, .maturari input { width: 96px; text-align: right; }
+#customShift { width: 180px; }
+@media (max-width: 900px) {
+  header { padding: 12px; }
+  table.turni td.label, table.turni th.label { min-width: 140px; }
+}
+
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div>
+      <h1>Turni HR + Piano Ferie/PAR — Modena 2026</h1>
+      <p class="sub">Inserisci i turni mese per mese, calcola ferie/PAR, esporta il mese in Excel (formato Turni HR). Dati in locale sul browser.</p>
+    </div>
+    <div class="actions">
+      <button class="primary" id="btnSave">Salva</button>
+      <button class="primary" id="btnExport">Esporta mese in Excel</button>
+      <button id="btnExportJson">Esporta JSON</button>
+      <label class="file-btn">Importa JSON<input type="file" id="importFile" accept="application/json,.json"></label>
+      <button class="ghost" id="btnReset">Ripristina seed</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="main-tabs">
+      <button type="button" data-tab="turni" class="active">Turni</button>
+      <button type="button" data-tab="ferie">Calcolo ferie / PAR</button>
+      <button type="button" data-tab="risorse">Risorse</button>
+      <button type="button" data-tab="maturari">Maturari</button>
+    </div>
+
+    <div class="legend">
+      <span class="swatch"><i style="background:#92d050"></i> FERIE</span>
+      <span class="swatch"><i style="background:#ffff00"></i> PAR</span>
+      <span class="swatch"><i style="background:#f4b183"></i> RIPOSO</span>
+      <span class="swatch"><i style="background:#ff6b6b"></i> FESTIVO</span>
+      <span class="swatch"><i style="background:#ffc000"></i> Congedo / permesso</span>
+      <span class="swatch"><i style="background:#bdd7ee"></i> Altro store</span>
+      <span class="swatch"><i style="background:#fff;border:1px solid #ccc"></i> Turno orario</span>
+    </div>
+  </section>
+
+  <section class="panel" id="view-turni">
+    <div class="toolbar" style="justify-content:space-between">
+      <h2 id="monthTitle" style="margin:0">Turni</h2>
+      <div class="actions">
+        <button class="primary" type="button" onclick="document.getElementById('btnExport').click()">Esporta questo mese</button>
+      </div>
+    </div>
+    <div id="monthTabs"></div>
+    <p class="hint">Scegli un preset e clicca una cella per assegnarlo. Doppio click per testo libero. Le ore straordinarie settimanali = ore lavorate (fasce orarie / store) − ore contrattuali.</p>
+    <div class="toolbar">
+      <strong style="font-size:.85rem">Preset:</strong>
+      <input id="customShift" placeholder="Personalizzato…">
+    </div>
+    <div class="presets" id="presets"></div>
+    <div id="turniGrid"></div>
+    <div class="status" id="saveStatus"></div>
+  </section>
+
+  <section class="panel hidden" id="view-ferie">
+    <h2>Calcolo ferie e PAR</h2>
+    <p class="hint" id="ferieMonthHint"></p>
+    <p class="hint">Le ferie/PAR godute sono ricavate dai turni: <b>FERIE</b> = 1 giorno (8h), <b>nH PAR</b> = ore PAR, <b>RIPOSO</b> = giorno libero (per maturazione da settembre).</p>
+    <div style="overflow-x:auto;margin-bottom:18px">
+      <table class="summary" id="ferieMonthTable"></table>
+    </div>
+    <h2>Riepilogo annuale</h2>
+    <div style="overflow-x:auto">
+      <table class="summary" id="ferieYearTable"></table>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="view-risorse">
+    <h2>Risorse</h2>
+    <p class="hint">Nome come in export HR, store di appartenenza, ore settimanali e residui anno precedente (ore).</p>
+    <div style="overflow-x:auto">
+      <table class="people" id="peopleTable"></table>
+    </div>
+    <div class="actions" style="margin-top:12px">
+      <button type="button" id="addPerson">Aggiungi risorsa</button>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="view-maturari">
+    <h2>Maturari</h2>
+    <p class="hint">Maturato ferie mensile (ore a tempo pieno) e giorni lavorativi stimati per i PAR (0,4 h × giorno). Proporzionato alle ore/settimana della risorsa.</p>
+    <div style="overflow-x:auto">
+      <table class="maturari" id="maturariTable"></table>
+    </div>
+    <div class="toolbar" style="margin-top:12px">
+      <label><input type="checkbox" id="useDailyFromSep"> Usa maturazione giornaliera da settembre (come Excel piano ferie)</label>
+    </div>
+    <div id="liberiFittiziBox" class="toolbar"></div>
+  </section>
+</main>
+
+<script src="./vendor/exceljs.min.js"></script>
+<script>
+const SEED_TURNI = {"2026-06-01": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "8H PAR", "DANIELA GAUDENZI": "FERIE", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-06-02": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-06-03": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "11.30 - 19.30", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-06-04": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "11.30 - 19.30", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-06-05": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "10.30 - 18.30", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-06-06": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "10.30 - 18.30", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-06-07": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-06-08": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "11.30 - 19.30", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-06-09": {"MARIA BEATRIZ RAGUCCI POLATO": "PERMESSO STUDIO", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-06-10": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "PADOVA", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-06-11": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "11.30 - 19.30", "SEYED ARVIN MOOSAVIAN": "10.30 - 18.30"}, "2026-06-12": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-06-13": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "11.30 - 19.30", "SEYED ARVIN MOOSAVIAN": "10.30 - 18.30"}, "2026-06-14": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-06-15": {"MARIA BEATRIZ RAGUCCI POLATO": "PERMESSO STUDIO", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-06-16": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "BOLOGNA", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-06-17": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-06-18": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-06-19": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-06-20": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-06-21": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-06-22": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "8H PAR", "DANIELA GAUDENZI": "11.30 - 19.30", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-06-23": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "8H PAR", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-06-24": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "8H PAR", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-06-25": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "8H PAR", "DANIELA GAUDENZI": "10.30 - 18.30", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-06-26": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "8H PAR", "DANIELA GAUDENZI": "10.30 - 18.30", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-06-27": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "10.30 - 18.30", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-06-28": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-06-29": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "BOLOGNA", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-06-30": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "BOLOGNA", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-07-01": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "FERIE", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-07-02": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "8H PAR", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-07-03": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "8H PAR", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-07-04": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-07-05": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-07-06": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-07-07": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-07-08": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-07-09": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-07-10": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-07-11": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-07-12": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-07-13": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-07-14": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "11.30 - 19.30", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-07-15": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-07-16": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "11.30 - 19.30", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-07-17": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "11.30 - 19.30", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-07-18": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "11.30 - 19.30", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-07-19": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-07-20": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-07-21": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-07-22": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "10.30 - 18.30", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-07-23": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "8H PAR", "DANIELA GAUDENZI": "10.30 - 18.30", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-07-24": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "8H PAR", "DANIELA GAUDENZI": "10.30 - 18.30", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-07-25": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "10.30 - 18.30", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-07-26": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-07-27": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-07-28": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "10.30 - 18.30"}, "2026-07-29": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "10.30 - 18.30"}, "2026-07-30": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "FERIE", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-07-31": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-08-01": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "8H PAR", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-08-02": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-08-03": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-08-04": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-08-05": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-08-06": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-08-07": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "ANNALISA MARIA ALESSIA MARGIOTTA": "11.30 - 19.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-08-08": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-08-09": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-08-10": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE", "DANIELA GAUDENZI": "FERIE", "SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-08-11": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE", "DANIELA GAUDENZI": "FERIE", "SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-08-12": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE", "DANIELA GAUDENZI": "FERIE", "SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-08-13": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE", "DANIELA GAUDENZI": "FERIE", "SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-08-14": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-08-15": {"MARIA BEATRIZ RAGUCCI POLATO": "FESTIVO", "ANNALISA MARIA ALESSIA MARGIOTTA": "FESTIVO", "DANIELA GAUDENZI": "FESTIVO", "SEYED ARVIN MOOSAVIAN": "FESTIVO"}, "2026-08-16": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-08-17": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-08-18": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE", "DANIELA GAUDENZI": "8H PAR", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-08-19": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE", "DANIELA GAUDENZI": "8H PAR", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-08-20": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE", "DANIELA GAUDENZI": "8H PAR", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-08-21": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE", "DANIELA GAUDENZI": "8H PAR", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-08-22": {"MARIA BEATRIZ RAGUCCI POLATO": "9 - 17", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE", "DANIELA GAUDENZI": "8H PAR", "SEYED ARVIN MOOSAVIAN": "11.30 - 19.30"}, "2026-08-23": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-08-24": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-08-25": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-08-26": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "11.30 - 19.30", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-08-27": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-08-28": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "VERONA", "DANIELA GAUDENZI": "10.30 - 18.30", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-08-29": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "10.30 - 18.30", "SEYED ARVIN MOOSAVIAN": "9 - 17"}, "2026-08-30": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-08-31": {"MARIA BEATRIZ RAGUCCI POLATO": "11.30 - 19.30", "ANNALISA MARIA ALESSIA MARGIOTTA": "10.30 - 18.30", "DANIELA GAUDENZI": "9 - 17", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-01-02": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "DANIELA GAUDENZI": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-01-03": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-01-04": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO"}, "2026-01-05": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-01-07": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-01-08": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-01-09": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-01-10": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-01-11": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-01-12": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-03-21": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-03-22": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-03-23": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-03-24": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR"}, "2026-03-25": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR"}, "2026-03-26": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-03-27": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR"}, "2026-03-28": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR"}, "2026-03-30": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-03-31": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-04-01": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR"}, "2026-04-02": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-04-03": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-04-04": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-04-07": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-05-08": {"MARIA BEATRIZ RAGUCCI POLATO": "1H PAR"}, "2026-05-18": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR"}, "2026-09-02": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-09-03": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-09-04": {"MARIA BEATRIZ RAGUCCI POLATO": "1.5H PAR", "DANIELA GAUDENZI": "RIPOSO"}, "2026-09-13": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-09-14": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-09-16": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-09-25": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-09-26": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR"}, "2026-09-27": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-10-02": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-10-07": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-10-08": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-10-14": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-10-18": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-10-21": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-10-24": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-10-25": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-10-26": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-10-27": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE", "DANIELA GAUDENZI": "RIPOSO"}, "2026-10-28": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-10-29": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-10-30": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-10-31": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-11-02": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-11-04": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR"}, "2026-11-08": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-11-15": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-11-16": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-11-17": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE", "DANIELA GAUDENZI": "RIPOSO"}, "2026-11-18": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-11-19": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-11-20": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-11-21": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "DANIELA GAUDENZI": "FERIE"}, "2026-11-22": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-11-29": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO", "DANIELA GAUDENZI": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-12-07": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "ANNALISA MARIA ALESSIA MARGIOTTA": "8H PAR"}, "2026-12-09": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR", "ANNALISA MARIA ALESSIA MARGIOTTA": "8H PAR"}, "2026-12-10": {"MARIA BEATRIZ RAGUCCI POLATO": "8H PAR"}, "2026-12-11": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-12-12": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-12-13": {"MARIA BEATRIZ RAGUCCI POLATO": "RIPOSO"}, "2026-12-28": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-12-29": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-12-30": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-12-31": {"MARIA BEATRIZ RAGUCCI POLATO": "FERIE"}, "2026-02-11": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-02-12": {"DANIELA GAUDENZI": "8H PAR"}, "2026-02-13": {"DANIELA GAUDENZI": "FERIE"}, "2026-02-14": {"DANIELA GAUDENZI": "FERIE"}, "2026-02-15": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-02-16": {"DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-02-28": {"DANIELA GAUDENZI": "1.5H PAR", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO"}, "2026-03-05": {"DANIELA GAUDENZI": "FERIE"}, "2026-03-06": {"DANIELA GAUDENZI": "FERIE"}, "2026-03-07": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-03-09": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-04-08": {"DANIELA GAUDENZI": "8H PAR"}, "2026-04-09": {"DANIELA GAUDENZI": "FERIE"}, "2026-04-10": {"DANIELA GAUDENZI": "FERIE"}, "2026-04-11": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-04-13": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-05-28": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-05-29": {"DANIELA GAUDENZI": "FERIE"}, "2026-05-30": {"DANIELA GAUDENZI": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO"}, "2026-09-01": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-09-09": {"DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-09-11": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-09-18": {"DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-09-20": {"DANIELA GAUDENZI": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-09-21": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-09-23": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-09-29": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-09-30": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-10-11": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-10-16": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-10-20": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-11-06": {"DANIELA GAUDENZI": "FERIE"}, "2026-11-07": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-11-27": {"DANIELA GAUDENZI": "FERIE"}, "2026-11-28": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-12-01": {"DANIELA GAUDENZI": "8H PAR"}, "2026-12-02": {"DANIELA GAUDENZI": "8H PAR"}, "2026-12-03": {"DANIELA GAUDENZI": "RIPOSO"}, "2026-12-20": {"DANIELA GAUDENZI": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-12-21": {"DANIELA GAUDENZI": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-12-22": {"DANIELA GAUDENZI": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-12-23": {"DANIELA GAUDENZI": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-12-24": {"DANIELA GAUDENZI": "FERIE", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO"}, "2026-12-27": {"DANIELA GAUDENZI": "RIPOSO", "ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO"}, "2026-02-23": {"ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-02-24": {"ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-02-25": {"ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-02-26": {"ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-02-27": {"ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-03-01": {"ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO"}, "2026-04-27": {"ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-04-28": {"ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-04-29": {"ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-04-30": {"ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE"}, "2026-05-02": {"ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO"}, "2026-12-05": {"ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO"}, "2026-12-18": {"ANNALISA MARIA ALESSIA MARGIOTTA": "FERIE", "SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-12-19": {"ANNALISA MARIA ALESSIA MARGIOTTA": "RIPOSO", "SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-01-29": {"SEYED ARVIN MOOSAVIAN": "8H PAR"}, "2026-02-05": {"SEYED ARVIN MOOSAVIAN": "1H PAR"}, "2026-02-17": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-02-18": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-02-19": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-02-20": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-02-21": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-02-22": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-05-11": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-05-12": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-05-13": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-05-14": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-05-15": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-05-16": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-05-17": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-09-06": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-09-07": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-09-22": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-09-24": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-09-28": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-10-01": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-10-05": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-10-15": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-10-19": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-11-05": {"SEYED ARVIN MOOSAVIAN": "RIPOSO"}, "2026-12-14": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-12-15": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-12-16": {"SEYED ARVIN MOOSAVIAN": "FERIE"}, "2026-12-17": {"SEYED ARVIN MOOSAVIAN": "FERIE"}};
+
+const YEAR = 2026;
+const STORAGE_KEY = "turni-ferie-par-modena-2026-v2";
+const MONTHS = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+const MONTHS_UPPER = MONTHS.map(m => m.toUpperCase());
+const WEEKDAYS = ["LUNEDI","MARTEDI","MERCOLEDI","GIOVEDI","VENERDI","SABATO","DOMENICA"];
+const FERIE_DAY_RATE = 0.61538;
+const PAR_DAY_RATE = 0.4;
+
+const HOLIDAYS = new Set([
+  "2026-01-01","2026-01-06","2026-01-31",
+  "2026-04-05","2026-04-06","2026-04-25",
+  "2026-05-01","2026-06-02","2026-08-15",
+  "2026-11-01","2026-12-08","2026-12-25","2026-12-26"
+]);
+
+const PRESETS = [
+  "9 - 17", "11.30 - 19.30", "10.30 - 18.30",
+  "RIPOSO", "FERIE", "8H PAR", "4H PAR", "1H PAR",
+  "FESTIVO", "CONGEDO", "PERMESSO STUDIO",
+  "VERONA", "BOLOGNA", "PADOVA", "MODENA"
+];
+
+const DEFAULT_PEOPLE = [
+  { id: "p1", name: "MARIA BEATRIZ RAGUCCI POLATO", store: "MODENA", hoursWeek: 40, ferieRes: 71.966, parRes: 103.709 },
+  { id: "p2", name: "ANNALISA MARIA ALESSIA MARGIOTTA", store: "MODENA", hoursWeek: 40, ferieRes: 0, parRes: 0 },
+  { id: "p3", name: "DANIELA GAUDENZI", store: "MODENA", hoursWeek: 40, ferieRes: 24.888, parRes: 13.906 },
+  { id: "p4", name: "SEYED ARVIN MOOSAVIAN", store: "MODENA", hoursWeek: 40, ferieRes: 29.308, parRes: 36.852 }
+];
+
+const DEFAULT_MATURARI = {
+  ferieMonth: [13.539, 12.308, 12.923, 12.5, 12.923, 12.5, 12.923, 12.923, 12.5, 12.923, 12.5, 12.923],
+  parWorkDays: [22, 20, 21, 21, 21, 21, 23, 21, 22, 22, 21, 20]
+};
+
+const COLORS = {
+  header: "AEAAAA",
+  daynum: "BFBFBF",
+  white: "FFFFFF",
+  ferie: "92D050",
+  par: "FFFF00",
+  riposo: "F4B183",
+  festivo: "FF6B6B",
+  congedo: "FFC000",
+  store: "BDD7EE",
+  work: "FFFFFF",
+  empty: "F7F7F7"
+};
+
+function pad(n){ return String(n).padStart(2,"0"); }
+function iso(d){
+  if (typeof d === "string") return d;
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function parseISO(s){
+  const [y,m,d] = s.split("-").map(Number);
+  return new Date(y, m-1, d);
+}
+function daysInMonth(y,m){ return new Date(y, m, 0).getDate(); }
+function round3(n){ return Math.round((n + Number.EPSILON) * 1000) / 1000; }
+function fmt(n){
+  if (n == null || Number.isNaN(n)) return "—";
+  return round3(n).toLocaleString("it-IT", { maximumFractionDigits: 3 });
+}
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+function isHoliday(ds){ return HOLIDAYS.has(ds); }
+function isSunday(ds){ return parseISO(ds).getDay() === 0; }
+
+function weeksForMonth(year, month){
+  const first = new Date(year, month-1, 1);
+  const start = new Date(first);
+  start.setDate(first.getDate() - ((first.getDay() + 6) % 7)); // Monday
+  const last = new Date(year, month-1, daysInMonth(year, month));
+  const end = new Date(last);
+  end.setDate(last.getDate() + (7 - ((last.getDay() + 6) % 7) - 1)); // Sunday
+  const weeks = [];
+  for (let cur = new Date(start); cur <= end; cur.setDate(cur.getDate() + 7)) {
+    const week = [];
+    for (let i=0;i<7;i++){
+      const d = new Date(cur);
+      d.setDate(cur.getDate() + i);
+      week.push(new Date(d));
+    }
+    weeks.push(week);
+  }
+  return weeks;
+}
+
+function parseTimeToHours(token){
+  token = String(token).trim().replace(",", ".");
+  if (/^\d{1,2}$/.test(token)) return Number(token);
+  const m = token.match(/^(\d{1,2})(?:[.:](\d{2}))?$/);
+  if (!m) return null;
+  return Number(m[1]) + (m[2] ? Number(m[2]) / 60 : 0);
+}
+
+function hoursFromShift(val){
+  if (!val) return 0;
+  const s = String(val).trim();
+  const range = s.match(/^(\d{1,2}(?:[.:]\d{2})?)\s*[-–]\s*(\d{1,2}(?:[.:]\d{2})?)$/);
+  if (range) {
+    const a = parseTimeToHours(range[1]);
+    const b = parseTimeToHours(range[2]);
+    if (a != null && b != null && b > a) return round3(b - a);
+  }
+  const u = s.toUpperCase();
+  if (["VERONA","BOLOGNA","PADOVA","MODENA","MILANO","ROMA"].includes(u)) return 8;
+  return 0;
+}
+
+function classifyShift(val){
+  if (val == null || String(val).trim() === "") return null;
+  const raw = String(val).trim();
+  const u = raw.toUpperCase();
+  if (u === "FERIE" || u.startsWith("FERIE")) return { kind: "FERIE" };
+  const par = u.match(/^(\d+(?:[.,]\d+)?)\s*H\s*PAR$/);
+  if (par) return { kind: "PAR", hours: Number(par[1].replace(",", ".")) };
+  if (u === "RIPOSO") return { kind: "RIPOSO" };
+  if (u === "FESTIVO") return { kind: "FESTIVO" };
+  if (u.includes("CONGEDO") || u.includes("PERMESSO")) return { kind: "CONGEDO" };
+  if (hoursFromShift(raw) > 0) return { kind: "WORK", hours: hoursFromShift(raw) };
+  return { kind: "OTHER", label: raw };
+}
+
+function colorForShift(val, ds, inMonth){
+  if (!inMonth) return COLORS.empty;
+  const c = classifyShift(val);
+  if (!c) {
+    if (isHoliday(ds)) return COLORS.festivo;
+    if (isSunday(ds)) return COLORS.riposo;
+    return COLORS.white;
+  }
+  if (c.kind === "FERIE") return COLORS.ferie;
+  if (c.kind === "PAR") return COLORS.par;
+  if (c.kind === "RIPOSO") return COLORS.riposo;
+  if (c.kind === "FESTIVO") return COLORS.festivo;
+  if (c.kind === "CONGEDO") return COLORS.congedo;
+  if (c.kind === "WORK" && !/^\d/.test(String(val).trim())) return COLORS.store;
+  return COLORS.work;
+}
+
+function buildDefaultTurni(){
+  // Convert seed (date -> {name: val}) into personId -> {date: val}
+  const byName = {};
+  for (const p of DEFAULT_PEOPLE) byName[p.name] = p.id;
+  const cal = {};
+  for (const p of DEFAULT_PEOPLE) cal[p.id] = {};
+  for (const [ds, peopleMap] of Object.entries(SEED_TURNI)) {
+    for (const [name, val] of Object.entries(peopleMap)) {
+      const id = byName[name];
+      if (!id) continue;
+      cal[id][ds] = val;
+    }
+  }
+  return cal;
+}
+
+function defaultState(){
+  return {
+    people: JSON.parse(JSON.stringify(DEFAULT_PEOPLE)),
+    turni: buildDefaultTurni(),
+    maturari: JSON.parse(JSON.stringify(DEFAULT_MATURARI)),
+    useDailyFromSep: true,
+    liberiFittizi: [false,false,false,false,false,false,false,false,false,false,true,true],
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function loadState(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    if (!parsed.people || !parsed.turni || !parsed.maturari) return defaultState();
+    return parsed;
+  } catch {
+    return defaultState();
+  }
+}
+
+let state = loadState();
+let currentMonth = Math.min(12, Math.max(1, (new Date().getFullYear() === YEAR ? new Date().getMonth() + 1 : 6)));
+let activePreset = "9 - 17";
+let selectedCell = null;
+
+function saveState(announce = true){
+  state.updatedAt = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const el = document.getElementById("saveStatus");
+  if (el && announce) el.textContent = "Salvato in locale · " + new Date(state.updatedAt).toLocaleString("it-IT");
+}
+
+function getShift(personId, ds){
+  return (state.turni[personId] || {})[ds] || "";
+}
+function setShift(personId, ds, value){
+  if (!state.turni[personId]) state.turni[personId] = {};
+  if (!value || !String(value).trim()) delete state.turni[personId][ds];
+  else state.turni[personId][ds] = String(value).trim();
+}
+
+function weekOvertime(person, weekDates){
+  let worked = 0;
+  for (const d of weekDates) {
+    const ds = iso(d);
+    worked += hoursFromShift(getShift(person.id, ds));
+  }
+  return Math.max(0, round3(worked - (Number(person.hoursWeek) || 0)));
+}
+
+function ratio(person){ return (Number(person.hoursWeek) || 0) / 40; }
+
+function ferieCumulative(){
+  const out = []; let s = 0;
+  for (let i=0;i<12;i++){ s += Number(state.maturari.ferieMonth[i]) || 0; out.push(s); }
+  return out;
+}
+function parMonthly(){ return state.maturari.parWorkDays.map(d => (Number(d)||0) * PAR_DAY_RATE); }
+function parCumulative(){
+  const out = []; let s = 0;
+  for (const v of parMonthly()){ s += v; out.push(s); }
+  return out;
+}
+
+function usageInMonth(personId, month){
+  let ferieDays = 0, parHours = 0, riposi = 0;
+  const dim = daysInMonth(YEAR, month);
+  for (let d=1; d<=dim; d++){
+    const ds = `${YEAR}-${pad(month)}-${pad(d)}`;
+    const c = classifyShift(getShift(personId, ds));
+    if (!c) continue;
+    if (c.kind === "FERIE") ferieDays += 1;
+    else if (c.kind === "PAR") parHours += c.hours;
+    else if (c.kind === "RIPOSO") riposi += 1;
+  }
+  return { ferieDays, parHours, riposi };
+}
+
+function usageUpTo(personId, month){
+  let ferieDays = 0, parHours = 0;
+  for (let m=1; m<=month; m++){
+    const u = usageInMonth(personId, m);
+    ferieDays += u.ferieDays;
+    parHours += u.parHours;
+  }
+  return { ferieDays, parHours };
+}
+
+function maturedThrough(person, monthIndex0){
+  const ferieCum = ferieCumulative();
+  const parCum = parCumulative();
+  const r = ratio(person);
+  if (!state.useDailyFromSep || monthIndex0 < 8) {
+    return { ferie: (ferieCum[monthIndex0] || 0) * r, par: (parCum[monthIndex0] || 0) * r };
+  }
+  let ferie = (ferieCum[7] || 0) * r;
+  let par = (parCum[7] || 0) * r;
+  for (let m = 8; m <= monthIndex0; m++) {
+    const dim = daysInMonth(YEAR, m+1);
+    const fict = !!state.liberiFittizi[m];
+    const workDays = fict ? (dim - Math.ceil(dim / 3.5)) : (dim - usageInMonth(person.id, m+1).riposi);
+    ferie += workDays * FERIE_DAY_RATE * r;
+    par += workDays * PAR_DAY_RATE * r;
+  }
+  return { ferie, par };
+}
+
+function balancesFor(person, month){
+  const tot = usageUpTo(person.id, month);
+  const matured = maturedThrough(person, month-1);
+  const prev = month > 1 ? maturedThrough(person, month-2) : { ferie: 0, par: 0 };
+  const ferieGoduto = tot.ferieDays * 8;
+  const ferieSaldo = matured.ferie - ferieGoduto + (Number(person.ferieRes)||0);
+  const parSaldo = matured.par - tot.parHours + (Number(person.parRes)||0);
+  return {
+    ferieMaturato: matured.ferie,
+    ferieGoduto,
+    ferieSaldo,
+    ferieDelta: ferieSaldo - (matured.ferie - prev.ferie),
+    parMaturato: matured.par,
+    parGoduto: tot.parHours,
+    parSaldo,
+    parDelta: parSaldo - (matured.par - prev.par),
+    ferieDaysYear: tot.ferieDays,
+    parHoursYear: tot.parHours
+  };
+}
+
+/* ---------------- RENDER ---------------- */
+
+function renderMonthTabs(){
+  const el = document.getElementById("monthTabs");
+  el.innerHTML = MONTHS.map((m,i) =>
+    `<button type="button" data-month="${i+1}" class="${currentMonth===i+1?"active":""}">${m.slice(0,3)}</button>`
+  ).join("");
+  el.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentMonth = Number(btn.dataset.month);
+      selectedCell = null;
+      renderAll();
+    });
+  });
+}
+
+function renderPresets(){
+  const el = document.getElementById("presets");
+  el.innerHTML = PRESETS.map(p =>
+    `<button type="button" class="preset ${activePreset===p?"active":""}" data-p="${escapeHtml(p)}">${escapeHtml(p)}</button>`
+  ).join("") + `<button type="button" class="preset danger ${activePreset==="__CLEAR__"?"active":""}" data-p="__CLEAR__">Cancella</button>`;
+  el.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activePreset = btn.dataset.p;
+      renderPresets();
+    });
+  });
+}
+
+function renderTurni(){
+  const wrap = document.getElementById("turniGrid");
+  const weeks = weeksForMonth(YEAR, currentMonth);
+  document.getElementById("monthTitle").textContent = `${MONTHS[currentMonth-1]} ${YEAR}`;
+
+  let html = "";
+  weeks.forEach((week, wi) => {
+    html += `<div class="week-block"><table class="turni">`;
+    html += "<tr class='wd'>";
+    html += "<th class='label'></th><th class='storeh'></th>";
+    WEEKDAYS.forEach(d => html += `<th>${d}</th>`);
+    html += "<th class='ot'>TOT ORE STRAO</th></tr>";
+
+    html += "<tr class='days'>";
+    html += "<th class='label'>RISORSA</th><th class='storeh'>STORE</th>";
+    week.forEach(d => {
+      const inMonth = d.getMonth()+1 === currentMonth;
+      html += `<th class="${inMonth?"":"out"}">${d.getDate()}</th>`;
+    });
+    html += "<th class='ot'></th></tr>";
+
+    state.people.forEach((person, pi) => {
+      const ot = weekOvertime(person, week);
+      html += "<tr>";
+      html += `<td class="label">${escapeHtml(person.name)}</td>`;
+      if (pi === 0) html += `<td class="store" rowspan="${state.people.length}">${escapeHtml(person.store || "MODENA")}</td>`;
+      week.forEach(d => {
+        const ds = iso(d);
+        const inMonth = d.getMonth()+1 === currentMonth;
+        const val = getShift(person.id, ds);
+        const bg = colorForShift(val, ds, true);
+        const sel = selectedCell && selectedCell.personId===person.id && selectedCell.ds===ds ? " selected" : "";
+        const disabled = inMonth ? "" : " out";
+        html += `<td class="cell${sel}${disabled}" data-person="${person.id}" data-date="${ds}" data-inmonth="${inMonth?1:0}" style="background:#${bg}">${escapeHtml(val)}</td>`;
+      });
+      html += `<td class="ot-val">${ot ? fmt(ot) : ""}</td>`;
+      html += "</tr>";
+    });
+    html += "</table></div>";
+  });
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll("td.cell").forEach(td => {
+    td.addEventListener("click", () => {
+      if (td.dataset.inmonth !== "1") return;
+      const personId = td.dataset.person;
+      const ds = td.dataset.date;
+      selectedCell = { personId, ds };
+      if (activePreset === "__CLEAR__") setShift(personId, ds, "");
+      else setShift(personId, ds, activePreset);
+      saveState();
+      renderTurni();
+      renderFerie();
+      renderSummary();
+    });
+    td.addEventListener("dblclick", () => {
+      if (td.dataset.inmonth !== "1") return;
+      const personId = td.dataset.person;
+      const ds = td.dataset.date;
+      const cur = getShift(personId, ds);
+      const next = prompt("Valore turno (es. 9 - 17, FERIE, 8H PAR, VERONA):", cur);
+      if (next == null) return;
+      setShift(personId, ds, next);
+      selectedCell = { personId, ds };
+      saveState();
+      renderTurni();
+      renderFerie();
+      renderSummary();
+    });
+  });
+}
+
+function renderPeople(){
+  const table = document.getElementById("peopleTable");
+  let html = `<thead><tr>
+    <th>Nome completo</th><th>Store</th><th>Ore/sett.</th>
+    <th>Residuo ferie prec. (h)</th><th>Residuo PAR prec. (h)</th><th></th>
+  </tr></thead><tbody>`;
+  state.people.forEach((p, idx) => {
+    html += `<tr>
+      <td><input data-i="${idx}" data-f="name" value="${escapeHtml(p.name)}"></td>
+      <td><input data-i="${idx}" data-f="store" value="${escapeHtml(p.store||"")}"></td>
+      <td><input class="num" type="number" data-i="${idx}" data-f="hoursWeek" value="${p.hoursWeek}"></td>
+      <td><input class="num" type="number" step="0.001" data-i="${idx}" data-f="ferieRes" value="${p.ferieRes}"></td>
+      <td><input class="num" type="number" step="0.001" data-i="${idx}" data-f="parRes" value="${p.parRes}"></td>
+      <td><button type="button" data-del="${idx}">Elimina</button></td>
+    </tr>`;
+  });
+  html += "</tbody>";
+  table.innerHTML = html;
+  table.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("change", () => {
+      const i = Number(inp.dataset.i), f = inp.dataset.f;
+      let v = inp.value;
+      if (f !== "name" && f !== "store") v = Number(v);
+      const oldName = state.people[i].name;
+      state.people[i][f] = v;
+      saveState();
+      renderAll();
+    });
+  });
+  table.querySelectorAll("button[data-del]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const i = Number(btn.dataset.del);
+      if (state.people.length <= 1) return;
+      const [removed] = state.people.splice(i,1);
+      delete state.turni[removed.id];
+      saveState();
+      renderAll();
+    });
+  });
+}
+
+function renderMaturari(){
+  const ferieCum = ferieCumulative();
+  const pMonth = parMonthly();
+  const pCum = parCumulative();
+  const table = document.getElementById("maturariTable");
+  let html = `<thead><tr>
+    <th>Mese</th><th>Ferie maturato mese (h)</th><th>Ferie cumulato</th>
+    <th>Giorni lav. PAR</th><th>PAR maturato mese</th><th>PAR cumulato</th>
+  </tr></thead><tbody>`;
+  for (let i=0;i<12;i++){
+    html += `<tr>
+      <td>${MONTHS[i]}</td>
+      <td><input type="number" step="0.001" data-i="${i}" data-f="ferieMonth" value="${state.maturari.ferieMonth[i]}"></td>
+      <td class="num">${fmt(ferieCum[i])}</td>
+      <td><input type="number" data-i="${i}" data-f="parWorkDays" value="${state.maturari.parWorkDays[i]}"></td>
+      <td class="num">${fmt(pMonth[i])}</td>
+      <td class="num">${fmt(pCum[i])}</td>
+    </tr>`;
+  }
+  html += "</tbody>";
+  table.innerHTML = html;
+  table.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("change", () => {
+      state.maturari[inp.dataset.f][Number(inp.dataset.i)] = Number(inp.value);
+      saveState();
+      renderFerie();
+      renderSummary();
+      renderMaturari();
+    });
+  });
+  document.getElementById("useDailyFromSep").checked = !!state.useDailyFromSep;
+  const box = document.getElementById("liberiFittiziBox");
+  if (state.useDailyFromSep) {
+    box.innerHTML = MONTHS.slice(8).map((name, idx) => {
+      const m = idx + 8;
+      return `<label><input type="checkbox" data-lf="${m}" ${state.liberiFittizi[m]?"checked":""}> Liberi fittizi ${name}</label>`;
+    }).join(" ");
+    box.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("change", () => {
+        state.liberiFittizi[Number(inp.dataset.lf)] = inp.checked;
+        saveState();
+        renderFerie();
+        renderSummary();
+      });
+    });
+  } else box.innerHTML = "";
+}
+
+function renderFerie(){
+  const monthTable = document.getElementById("ferieMonthTable");
+  const yearTable = document.getElementById("ferieYearTable");
+  document.getElementById("ferieMonthHint").textContent =
+    `Saldi cumulati a fine ${MONTHS[currentMonth-1]} ${YEAR}, calcolati dai turni (FERIE / nH PAR / RIPOSO).`;
+
+  let html = `<thead><tr>
+    <th>Risorsa</th><th>Ferie gg mese</th><th>PAR h mese</th>
+    <th>F maturato</th><th>F goduto</th><th>F saldo</th><th>F saldo−mat.mese</th>
+    <th>PAR maturato</th><th>PAR goduto</th><th>PAR saldo</th><th>PAR saldo−mat.mese</th>
+  </tr></thead><tbody>`;
+  for (const p of state.people) {
+    const u = usageInMonth(p.id, currentMonth);
+    const b = balancesFor(p, currentMonth);
+    html += `<tr>
+      <td>${escapeHtml(p.name)}</td>
+      <td class="num">${u.ferieDays}</td>
+      <td class="num">${fmt(u.parHours)}</td>
+      <td class="num">${fmt(b.ferieMaturato)}</td>
+      <td class="num">${fmt(b.ferieGoduto)}</td>
+      <td class="num ${b.ferieSaldo<0?"neg":""}">${fmt(b.ferieSaldo)}</td>
+      <td class="num ${b.ferieDelta<0?"neg":""}">${fmt(b.ferieDelta)}</td>
+      <td class="num">${fmt(b.parMaturato)}</td>
+      <td class="num">${fmt(b.parGoduto)}</td>
+      <td class="num ${b.parSaldo<0?"neg":""}">${fmt(b.parSaldo)}</td>
+      <td class="num ${b.parDelta<0?"neg":""}">${fmt(b.parDelta)}</td>
+    </tr>`;
+  }
+  html += "</tbody>";
+  monthTable.innerHTML = html;
+
+  html = `<thead><tr>
+    <th>Risorsa</th><th>Tot ferie (gg)</th><th>Tot PAR (h)</th>
+    <th>Residuo F prec.</th><th>Residuo PAR prec.</th>
+    <th>Saldo F fine anno (h)</th><th>Saldo PAR fine anno (h)</th>
+  </tr></thead><tbody>`;
+  for (const p of state.people) {
+    const b = balancesFor(p, 12);
+    html += `<tr>
+      <td>${escapeHtml(p.name)}</td>
+      <td class="num">${b.ferieDaysYear}</td>
+      <td class="num">${fmt(b.parHoursYear)}</td>
+      <td class="num">${fmt(p.ferieRes)}</td>
+      <td class="num">${fmt(p.parRes)}</td>
+      <td class="num ${b.ferieSaldo<0?"neg":"pos"}">${fmt(b.ferieSaldo)}</td>
+      <td class="num ${b.parSaldo<0?"neg":"pos"}">${fmt(b.parSaldo)}</td>
+    </tr>`;
+  }
+  html += "</tbody>";
+  yearTable.innerHTML = html;
+}
+
+function renderSummary(){
+  // keep alias for callsites
+  renderFerie();
+}
+
+function renderAll(){
+  renderMonthTabs();
+  renderPresets();
+  renderTurni();
+  renderPeople();
+  renderMaturari();
+  renderFerie();
+  const st = document.getElementById("saveStatus");
+  if (st && state.updatedAt) {
+    st.textContent = "Dati locali · aggiornati " + new Date(state.updatedAt).toLocaleString("it-IT");
+  }
+}
+
+/* ---------------- EXCEL EXPORT (ExcelJS → .xlsx Turni HR) ---------------- */
+
+function fillStyle(hex){
+  return { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + hex } };
+}
+function thinBorder(){
+  const s = { style: "thin", color: { argb: "FF000000" } };
+  return { top: s, left: s, bottom: s, right: s };
+}
+function styleCell(cell, { value, bg, bold=false, size=11, font="Calibri" }){
+  if (value !== undefined) cell.value = value;
+  cell.alignment = { horizontal: "center", vertical: "middle" };
+  cell.font = { name: font, size, bold, color: { argb: "FF000000" } };
+  cell.border = thinBorder();
+  if (bg) cell.fill = fillStyle(bg);
+}
+
+async function buildMonthWorkbook(month){
+  if (typeof ExcelJS === "undefined") throw new Error("ExcelJS non caricato");
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Turni HR Modena";
+  const ws = wb.addWorksheet(MONTHS_UPPER[month-1], {
+    views: [{ state: "normal", showGridLines: true }],
+    pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+  });
+  ws.getColumn(1).width = 30;
+  ws.getColumn(2).width = 14;
+  for (let c=3;c<=9;c++) ws.getColumn(c).width = 14;
+  ws.getColumn(10).width = 14;
+
+  const weeks = weeksForMonth(YEAR, month);
+  let row = 1;
+  const nPeople = state.people.length;
+
+  for (const week of weeks) {
+    // weekday header
+    for (let i=0;i<7;i++) styleCell(ws.getCell(row, 3+i), { value: WEEKDAYS[i], bg: COLORS.header, bold: true, size: 10 });
+    ws.getRow(row).height = 15;
+    row += 1;
+
+    // labels + day numbers + OT header
+    styleCell(ws.getCell(row, 1), { value: "RISORSA", bg: COLORS.header, size: 10 });
+    styleCell(ws.getCell(row, 2), { value: "STORE", bg: COLORS.header, size: 10 });
+    week.forEach((d,i) => styleCell(ws.getCell(row, 3+i), { value: d.getDate(), bg: COLORS.daynum, size: 10 }));
+    styleCell(ws.getCell(row, 10), { value: "TOT ORE STRAO", bg: COLORS.header, size: 10 });
+    ws.getRow(row).height = 15;
+    row += 1;
+
+    const peopleStart = row;
+    state.people.forEach((person, pi) => {
+      styleCell(ws.getCell(row, 1), { value: person.name, bg: COLORS.white, size: 8 });
+      if (pi === 0) {
+        styleCell(ws.getCell(row, 2), { value: person.store || "MODENA", bg: COLORS.white, size: 10 });
+      }
+      week.forEach((d,i) => {
+        const ds = iso(d);
+        const val = getShift(person.id, ds) || "";
+        const bg = colorForShift(val, ds, true);
+        styleCell(ws.getCell(row, 3+i), { value: val, bg, size: 11 });
+      });
+      const ot = weekOvertime(person, week);
+      styleCell(ws.getCell(row, 10), { value: ot || null, bg: COLORS.white, size: 10 });
+      ws.getRow(row).height = 15;
+      row += 1;
+    });
+    if (nPeople > 1) {
+      ws.mergeCells(peopleStart, 2, peopleStart + nPeople - 1, 2);
+      const storeCell = ws.getCell(peopleStart, 2);
+      storeCell.alignment = { horizontal: "center", vertical: "middle" };
+    }
+
+    // blank spacer
+    row += 1;
+  }
+  return wb;
+}
+
+async function exportMonthExcel(){
+  try {
+    const wb = await buildMonthWorkbook(currentMonth);
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `Turni_HR_${MONTHS_UPPER[currentMonth-1]}_${YEAR}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    alert("Export Excel fallito: " + err.message);
+  }
+}
+
+/* ---------------- INIT ---------------- */
+
+function showTab(tab){
+  document.querySelectorAll(".main-tabs [data-tab]").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.getElementById("view-turni").classList.toggle("hidden", tab !== "turni");
+  document.getElementById("view-ferie").classList.toggle("hidden", tab !== "ferie");
+  document.getElementById("view-risorse").classList.toggle("hidden", tab !== "risorse");
+  document.getElementById("view-maturari").classList.toggle("hidden", tab !== "maturari");
+}
+
+function init(){
+  document.querySelectorAll(".main-tabs [data-tab]").forEach(btn => {
+    btn.addEventListener("click", () => showTab(btn.dataset.tab));
+  });
+  document.getElementById("btnSave").addEventListener("click", () => saveState(true));
+  document.getElementById("btnExport").addEventListener("click", exportMonthExcel);
+  document.getElementById("btnExportJson").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `turni-ferie-modena-2026-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  document.getElementById("importFile").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      if (!parsed.people || !parsed.turni || !parsed.maturari) throw new Error("JSON non valido");
+      state = parsed;
+      saveState();
+      renderAll();
+    } catch (err) {
+      alert("Import fallito: " + err.message);
+    }
+    e.target.value = "";
+  });
+  document.getElementById("btnReset").addEventListener("click", () => {
+    if (!confirm("Ripristinare i dati iniziali (Turni HR + piano ferie)?")) return;
+    state = defaultState();
+    saveState();
+    renderAll();
+  });
+  document.getElementById("addPerson").addEventListener("click", () => {
+    const id = "p" + Math.random().toString(36).slice(2,9);
+    state.people.push({ id, name: "NUOVA RISORSA", store: "MODENA", hoursWeek: 40, ferieRes: 0, parRes: 0 });
+    state.turni[id] = {};
+    saveState();
+    renderAll();
+  });
+  document.getElementById("useDailyFromSep").addEventListener("change", (e) => {
+    state.useDailyFromSep = e.target.checked;
+    saveState();
+    renderFerie();
+    renderMaturari();
+  });
+  document.getElementById("customShift").addEventListener("change", (e) => {
+    const v = e.target.value.trim();
+    if (!v) return;
+    activePreset = v;
+    renderPresets();
+  });
+
+  if (!localStorage.getItem(STORAGE_KEY)) saveState(false);
+  renderAll();
+  showTab("turni");
+}
+
+init();
+
+</script>
+</body>
+</html>
